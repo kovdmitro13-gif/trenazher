@@ -21,9 +21,15 @@ const dir=process.argv[2]; const SH=process.env.SHOTS||'shots';
       const base=await p.evaluate(a=>a.map(x=>normUk(x)),s.answers); if(accepted.some(v=>!base.includes(v))) log.push(s.id+' variant normalisation fails');
       if(scheme==='light'&&i<12) await shot('near-'+s.id);
       await p.fill('.field input',' '+s.answers[0].replace(/'/g,'’').replace(/^./,c=>c.toUpperCase())+'. '); await p.click('text=Перевірити'); }
+    if(s.kind==='formula'){ const st=await p.evaluate(i=>{const x=LESSON.steps[i]; return {start:x.start||'',answer:x.answer,near:Object.keys(x.near||{}),fill:x.fill||x.target};},i);
+      if(st.start){ await p.click('[data-a=chk]'); if(!(await p.isVisible('.fb.bad'))) log.push(s.id+' start formula passed'); if(scheme==='light') await shot('start-'+s.id); }
+      for(const n of st.near){ await p.fill('.field input',n.toLowerCase()); await p.click('[data-a=chk]'); const t=await p.innerText('.out'); if(!/Поки що ні/.test(t)) log.push(s.id+' near not rejected: '+n); if(t.split('\n').filter(x=>x.trim()).length<3) log.push(s.id+' near message missing: '+n); }
+      await p.fill('.field input','=ROUND(E6,0)'); await p.click('[data-a=chk]'); if(!/крапка з комою/.test(await p.innerText('.out'))) log.push(s.id+' comma separator message missing');
+      await p.fill('.field input','B6+C6'); await p.click('[data-a=chk]'); if(!/починається зі знака/.test(await p.innerText('.out'))) log.push(s.id+' no-equals message missing');
+      await p.fill('.field input',' '+st.answer.toLowerCase().replace(/([*+/])/g,' $1 ')); await p.click('[data-a=put]'); await p.click('.mini'); if(scheme==='light'&&['x8','x18'].includes(s.id)) await shot('fx-'+s.id); await p.click('.mini'); await p.click('[data-a=chk]'); }
     await p.waitForTimeout(80);
     const done=await p.evaluate(id=>!!S.done[id]||LESSON.steps.find(x=>x.id===id).kind==='read',s.id); if(!done) log.push('NOT SOLVED '+s.id+' :: '+(await p.innerText('.out')));
-    if([0,1,2,10,14,17].includes(i)) await shot(String(i+1).padStart(2,'0')+'-'+s.id);
+    if((process.env.PICK||'0,1,2,10,14,17').split(',').map(Number).includes(i)) await shot(String(i+1).padStart(2,'0')+'-'+s.id);
     await p.click('#next'); }
   await ov('end'); await shot('99-end'); log.push(scheme+' end: '+(await p.innerText('.eyebrow'))+' | '+(await p.innerText('.score')).replace(/\n/g,' '));
   await ctx.close(); }

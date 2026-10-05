@@ -166,7 +166,32 @@ function renderStart(){
 }
 
 const normUk=s=>String(s).toLowerCase().replace(/[’ʼ`ʹ‘′]/g,"'").replace(/i/g,'і').replace(/[.,!?;:«»"()…]/g,' ').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim();
-const KIND={text:'Запиши словами',multi:'Познач усі правильні',read:'Пояснення',predict:'Що виведе',choice:'Вибери відповідь',fix:'Знайди помилку',gaps:'Встав пропущене',code:'Напиши код'};
+const KIND={formula:'Впиши формулу',text:'Запиши відповідь',multi:'Познач усі правильні',read:'Пояснення',predict:'Що виведе',choice:'Вибери відповідь',fix:'Знайди помилку',gaps:'Встав пропущене',code:'Напиши код'};
+/* ---- міні-таблиця ---- */
+function sheetBox(spec,cells,hl){
+  const box=el(`<div class="box"><div class="box-h sheet-h"><span>${esc(spec.title||'Аркуш')}</span><button type="button" class="mini">Показати формули</button></div><div class="sheet-wrap"></div></div>`);
+  const wrap=$('.sheet-wrap',box), btn=$('.mini',box); let showF=false, cur=cells, curHl=hl||spec.hl||[];
+  const f=a=>(spec.fmt||{})[a]||(spec.fmt||{})[a.replace(/\d+/,'')];
+  function draw(){
+    const get=SHEET.evaluator(cur); let h='<table class="sheet"><thead><tr><th></th>'+[...spec.cols].map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
+    for(const r of spec.rows){ h+=`<tr><th>${r}</th>`;
+      for(const c of spec.cols){ const a=c+r, raw=cur[a], isF=typeof raw==='string'&&raw[0]==='='; const v=get(a);
+        const cls=[curHl.includes(a)?'hl':'', (showF&&isF)?'fx':(v instanceof SHEET.FErr?'err':typeof v==='number'?'num':'txt')].join(' ');
+        h+=`<td class="${cls}">${esc(showF&&isF?raw:SHEET.fmt(v,f(a)))}</td>`; }
+      h+='</tr>'; }
+    wrap.innerHTML=h+'</tbody></table>'; btn.textContent=showF?'Показати значення':'Показати формули';
+  }
+  btn.addEventListener('click',()=>{ showF=!showF; draw(); }); draw();
+  return {box,update:(c,h2)=>{ cur=c; if(h2) curHl=h2; draw(); }};
+}
+function keyRow(input,keys){
+  const row=el(`<div class="keys" aria-label="Символи для вставки">${keys.map(k=>`<button type="button" data-ins="${esc(k)}" tabindex="-1">${esc(k)}</button>`).join('')}</div>`);
+  row.addEventListener('pointerdown',e=>{ const b=e.target.closest('button'); if(!b) return; e.preventDefault(); input.focus();
+    const a=input.selectionStart??input.value.length, z=input.selectionEnd??a; input.value=input.value.slice(0,a)+b.dataset.ins+input.value.slice(z); input.selectionStart=input.selectionEnd=a+b.dataset.ins.length; input.dispatchEvent(new Event('input')); });
+  return row;
+}
+const FKEYS=['=','$','(',')','*','/','+','-',';',':'];
+const FMSG={CYR:'У формулі є українські літери. Перемкни клавіатуру на англійську: адреси клітинок і назви функцій пишуть латинськими літерами.',NOEQ:'Формула починається зі знака =.',SEP:'У нашому Excel аргументи функції розділяє крапка з комою, а не кома: наприклад, ROUND(E6;0).',SYN:'Excel не зміг би прочитати таку формулу. Перевір дужки, знаки й адреси клітинок.',ARGS:'У функції не та кількість аргументів.',FN:'Такої функції цей тренажер не знає. Тут достатньо ROUND, SUM, AVERAGE, MEDIAN, MIN, MAX.',CIRC:'Формула посилається сама на себе.',REF:'Після копіювання формула вийшла за межі аркуша.'};
 function renderStep(st){
   S.seen[st.id]=true; save();
   app.innerHTML='';
@@ -191,7 +216,37 @@ function renderStep(st){
   const okHtml=()=>`<div class="fb ok"><b>Правильно.</b><span>${st.explain||''}</span></div>`;
 
   if(st.quote) work.appendChild(el(`<div class="box"><div class="box-h">${esc(st.who||'Речення')}</div><div class="said">${esc(st.quote)}</div></div>`));
-  if(st.kind==='read'){
+  if(st.sheet&&st.kind!=='formula') work.appendChild(sheetBox(st.sheet,st.sheet.cells).box);
+  if(st.kind==='formula'){
+    const fill=st.fill||st.target, cellsOf=SHEET.rangeCells(fill), many=cellsOf.length>1;
+    const apply=(f,over)=>{ const c=SHEET.fillFormula(Object.assign({},st.sheet.cells,over||{}),st.target,fill,f); const get=SHEET.evaluator(c); return {c,vals:cellsOf.map(a=>get(a))}; };
+    const same=(a,b)=>typeof a==='number'&&typeof b==='number'&&Math.abs(a-b)<1e-6;
+    const ff=a=>(st.sheet.fmt||{})[a]||(st.sheet.fmt||{})[a.replace(/\d+/,'')];
+    const saved=S.drafts[st.id+'-f']; const init=saved!==undefined?saved:(st.start||'');
+    const sb=sheetBox(st.sheet, init&&SHEET.normF(init)[0]==='='?(()=>{ try{ SHEET.parse(init); return apply(init).c; }catch(e){ return st.sheet.cells; } })():st.sheet.cells, cellsOf);
+    const f=el(`<div class="field"><label for="fx-${st.id}">Формула для клітинки ${esc(st.target)}${many?` (тренажер скопіює її на ${esc(fill)})`:''}</label>
+      <input type="text" class="mono" id="fx-${st.id}" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(init||'=')}"></div>`);
+    const inp=$('input',f); f.appendChild(keyRow(inp,FKEYS));
+    inp.addEventListener('input',()=>{ S.drafts[st.id+'-f']=inp.value; save(); });
+    const row=el(`<div class="row"><button class="btn" type="button" data-a="put">${many?'Вставити й скопіювати':'Вставити'}</button><button class="btn pri" type="button" data-a="chk">Перевірити</button>${st.start?'<button class="btn quiet" type="button" data-a="reset">Повернути початкову формулу</button>':''}</div>`);
+    const parseOk=v=>{ try{ SHEET.parse(v); return null; }catch(e){ return FMSG[e.code]||FMSG.SYN; } };
+    row.addEventListener('click',e=>{ const a=e.target.dataset.a; if(!a) return;
+      if(a==='reset'){ inp.value=st.start; inp.dispatchEvent(new Event('input')); sb.update(apply(st.start).c); out.innerHTML=''; return; }
+      const v=SHEET.normF(inp.value); inp.value=v; const bad=parseOk(v);
+      if(bad){ out.innerHTML=`<div class="fb bad"><b>Формула не читається.</b><span>${esc(bad)}</span></div>`; return; }
+      const got=apply(v); sb.update(got.c);
+      if(a==='put'){ out.innerHTML=''; return; }
+      const want=apply(st.answer); const k=got.vals.findIndex((x,i)=>!same(x,want.vals[i]));
+      if(k>=0){ miss(); const ad=cellsOf[k], x=got.vals[k];
+        const fnErr=x instanceof SHEET.FErr&&FMSG[x.code]&&!SHEET.ERRTXT[x.code];
+        const near=Object.keys(st.near||{}).find(q=>SHEET.normF(q)===v);
+        out.innerHTML=`<div class="fb bad"><b>Поки що ні.</b><span>${fnErr?esc(FMSG[x.code]):`У клітинці ${ad} вийшло ${esc(SHEET.fmt(x,ff(ad))||'порожньо')}, а має бути ${esc(SHEET.fmt(want.vals[k],ff(ad)))}.${many&&ad!==st.target?` Після копіювання там формула ${esc(got.c[ad])}.`:''}`}</span>${near?`<span>${esc(st.near[near])}</span>`:''}</div>`+hintHtml(); return; }
+      const failAlt=(st.alts||[]).find(o=>{ const g=apply(v,o), w=apply(st.answer,o); return g.vals.some((x,i)=>!same(x,w.vals[i])); });
+      if(failAlt){ miss(); out.innerHTML=`<div class="fb bad"><b>На цих числах збіглося, але формула ще не та.</b><span>${esc(st.altMsg||'Якщо змінити дані в таблиці, результат буде хибний. Формула має брати значення з клітинок, а не містити готові числа чи не той діапазон.')}</span></div>`+hintHtml(); return; }
+      if(!S.done[st.id]) S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); });
+    work.append(sb.box,f,row); if(done) out.innerHTML=okHtml();
+  }
+  else if(st.kind==='read'){
     (st.runs||[]).forEach((run,idx)=>{ const ed=editor(st,idx,run,false);
       const b=el('<div class="row"><button class="btn" type="button">Запустити</button></div>');
       $('button',b).addEventListener('click',()=>ed.runNow()); work.append(ed.box,b); });
@@ -211,13 +266,16 @@ function renderStep(st){
   }
   else if(st.kind==='text'){
     const f=el(`<form class="field"><label for="ans-${st.id}">${esc(st.field||'Запиши словами')}</label>
-      <input type="text" id="ans-${st.id}" autocapitalize="off" autocomplete="off" spellcheck="false" ${done?`value="${esc(st.answers[0])}"`:''}>
+      <input type="text" ${st.norm==='f'?'class="mono"':''} id="ans-${st.id}" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" ${done?`value="${esc(st.answers[0])}"`:''}>
       <div class="row" style="margin-top:6px"><button class="btn pri" type="submit">Перевірити</button></div></form>`);
     f.addEventListener('submit',e=>{ e.preventDefault(); if(S.done[st.id]) return;
-      const a=normUk($('input',f).value); if(!a) return;
-      if(st.answers.some(x=>normUk(x)===a)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
-      else { miss(); const near=Object.keys(st.near||{}).find(k=>normUk(k)===a);
-        out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(near?st.near[near].replace(/^Ні\.\s*/,''):(st.miss||'Перевір відмінок числівника і форму іменника.'))}</span></div>`+hintHtml(); } });
+      const N=st.norm==='f'?(x=>{ x=SHEET.normF(x).replace(/[.;,]+$/,''); return x&&x[0]!=='='?'='+x:x; }):normUk;
+      const a=N($('input',f).value); if(!a||a==='=') return;
+      if(st.norm==='f'&&/[А-ЯЁІЇЄҐ]/.test(a)){ out.innerHTML=`<div class="fb bad"><span>${esc(FMSG.CYR)}</span></div>`; return; }
+      if(st.answers.some(x=>N(x)===a)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
+      else { miss(); const near=Object.keys(st.near||{}).find(k=>N(k)===a);
+        out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(near?st.near[near].replace(/^Ні\.\s*/,''):(st.miss||LESSON.missText||'Не збігається. Перевір ще раз.'))}</span></div>`+hintHtml(); } });
+    if(st.norm==='f') $('input',f).after(keyRow($('input',f),FKEYS));
     work.appendChild(f); if(done) out.innerHTML=okHtml();
   }
   else if(st.kind==='multi'){

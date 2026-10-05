@@ -6,7 +6,7 @@
   --paper:#f2f4fa; --card:#ffffff; --ink:#141a2e; --muted:#59627f; --line:#d7dcea;
   --accent:#2b4acb; --accent-ink:#ffffff; --soft:#e6eafb;
   --ok:#17794a; --ok-soft:#e2f4ea; --bad:#bf2f1d; --bad-soft:#fbe9e5;
-  --code-bg:#f8f9fe; --kw:#c85a00; --str:#0b7f2c; --com:#b3261e; --fn:#7429b8; --out:#1f3fd0;
+  --code-bg:#f8f9fe; --mark:#fff2ad; --kw:#c85a00; --str:#0b7f2c; --com:#b3261e; --fn:#7429b8; --out:#1f3fd0;
   --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
   --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
@@ -15,13 +15,13 @@
   --paper:#0f1424; --card:#182036; --ink:#e8ecf8; --muted:#9ba6c6; --line:#2c3757;
   --accent:#8fa6ff; --accent-ink:#0f1424; --soft:#222d4d;
   --ok:#62d296; --ok-soft:#173326; --bad:#ff8d7a; --bad-soft:#3a1d1a;
-  --code-bg:#111830; --kw:#ffa24a; --str:#72dc8f; --com:#ff9184; --fn:#caa3ff; --out:#a3b8ff;
+  --code-bg:#111830; --mark:#4b431c; --kw:#ffa24a; --str:#72dc8f; --com:#ff9184; --fn:#caa3ff; --out:#a3b8ff;
   color-scheme:dark } }
 :root[data-theme="dark"]{
   --paper:#0f1424; --card:#182036; --ink:#e8ecf8; --muted:#9ba6c6; --line:#2c3757;
   --accent:#8fa6ff; --accent-ink:#0f1424; --soft:#222d4d;
   --ok:#62d296; --ok-soft:#173326; --bad:#ff8d7a; --bad-soft:#3a1d1a;
-  --code-bg:#111830; --kw:#ffa24a; --str:#72dc8f; --com:#ff9184; --fn:#caa3ff; --out:#a3b8ff;
+  --code-bg:#111830; --mark:#4b431c; --kw:#ffa24a; --str:#72dc8f; --com:#ff9184; --fn:#caa3ff; --out:#a3b8ff;
   color-scheme:dark }
 
 *{box-sizing:border-box}
@@ -85,6 +85,18 @@ textarea.ed:focus-visible{outline-offset:-3px}
 .nav{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:4px}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{text-align:left;min-height:48px;padding:10px 14px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);cursor:pointer}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:7px}
+.mini{border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--accent);font-size:12px;font-weight:600;padding:4px 9px;min-height:30px;cursor:pointer;text-transform:none;letter-spacing:0}
+.sheet-wrap{overflow-x:auto;border-top:1px solid var(--line);background:var(--card)}
+.sheet{border-collapse:collapse;font-family:var(--f-mono);font-size:13px;line-height:1.3;min-width:100%}
+.sheet th{background:var(--soft);color:var(--muted);font-weight:600;font-size:12px;padding:4px 5px;border:1px solid var(--line);text-align:center}
+.sheet td{padding:5px 4px;border:1px solid var(--line);white-space:nowrap;height:31px}
+.sheet td.num{text-align:right;font-variant-numeric:tabular-nums}
+.sheet td.txt{font-family:var(--f-body)}
+.sheet td.err{color:var(--bad);text-align:right;font-weight:600}
+.sheet td.fx{color:var(--fn)}
+.sheet td.hl{background:var(--mark)}
+.field>.keys{border:1px solid var(--line);border-radius:9px}
 .opt[aria-pressed=true]{border-color:var(--accent);background:var(--soft);font-weight:600}
 .said{padding:6px 12px 12px;font-size:18px;line-height:1.45}
 .opt.right{border-color:var(--ok);background:var(--ok-soft)}
@@ -130,6 +142,132 @@ ul.plain{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:4px
 <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
 <script>
+/* ============ МІНІ-ТАБЛИЦЯ: обчислення формул ============ */
+/* Без DOM. Підтримує: числа (десяткова кома або крапка), посилання з $, діапазони, + - * / ( ) %,
+   функції ROUND, SUM, AVERAGE, MEDIAN, MIN, MAX з роздільником аргументів «;».
+   Помилки як в українському Excel: #ЗНАЧЕННЯ!, #ДІЛЕННЯ/0!. */
+const SHEET=(()=>{
+  const ERRTXT={V:'#ЗНАЧЕННЯ!',D:'#ДІЛЕННЯ/0!'};
+  class FErr extends Error{ constructor(code,info){ super(code); this.code=code; this.info=info; } }
+  const colN=c=>c.split('').reduce((n,ch)=>n*26+ch.charCodeAt(0)-64,0);
+  const colL=n=>{ let s=''; while(n>0){ n--; s=String.fromCharCode(65+n%26)+s; n=Math.floor(n/26); } return s; };
+  const REF=/(\$?)([A-Z]{1,2})(\$?)(\d+)/g;
+  const parseRef=r=>{ const m=/^(\$?)([A-Z]{1,2})(\$?)(\d+)$/.exec(r); return {ca:!!m[1],c:colN(m[2]),ra:!!m[3],r:+m[4]}; };
+  // великі літери, без пробілів; кириличні двійники латинських літер (А, В, С, Е…) замінюємо на латинські
+  const CYR={'А':'A','В':'B','С':'C','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','Т':'T','Х':'X','І':'I'};
+  const normF=s=>String(s).toUpperCase().replace(/\s+/g,'').replace(/[АВСЕКМНОРТХІ]/g,ch=>CYR[ch]);
+
+  // зсув формули під час копіювання: відносні частини рухаються, частини з $ стоять
+  function shiftF(src,dr,dc){
+    return normF(src).replace(REF,(m,ca,c,ra,r)=>{
+      const nc=ca?colN(c):colN(c)+dc, nr=ra?+r:+r+dr;
+      if(nc<1||nr<1) return '#REF!';
+      return ca+colL(nc)+ra+nr; });
+  }
+
+  function tokenize(s){
+    const out=[]; let i=0;
+    while(i<s.length){
+      const rest=s.slice(i); let m;
+      if((m=/^\$?[A-Z]{1,2}\$?\d+/.exec(rest))){ out.push({t:'ref',v:m[0]}); }
+      else if((m=/^\d+(?:[.,]\d+)?/.exec(rest))){ out.push({t:'num',v:parseFloat(m[0].replace(',','.'))}); }
+      else if((m=/^[A-Z][A-Z0-9.]*/.exec(rest))){ out.push({t:'name',v:m[0]}); }
+      else if((m=/^[-+*\/();:%]/.exec(rest))){ out.push({t:m[0]}); }
+      else if(rest[0]===','){ throw new FErr('SEP'); }
+      else throw new FErr('SYN');
+      i+=m[0].length;
+    }
+    return out;
+  }
+  function parse(src){
+    let s=normF(src); if(/[А-ЯЁІЇЄҐ]/.test(s)) throw new FErr('CYR'); if(s[0]!=='=') throw new FErr('NOEQ'); s=s.slice(1); if(!s) throw new FErr('SYN');
+    if(s.includes('#REF!')) throw new FErr('REF');
+    const tk=tokenize(s); let p=0;
+    const peek=()=>tk[p], eat=t=>{ if(!tk[p]||tk[p].t!==t) throw new FErr('SYN'); return tk[p++]; };
+    function expr(){ let a=term(); while(peek()&&(peek().t==='+'||peek().t==='-')){ const op=tk[p++].t; a={k:'bin',op,a,b:term()}; } return a; }
+    function term(){ let a=unary(); while(peek()&&(peek().t==='*'||peek().t==='/')){ const op=tk[p++].t; a={k:'bin',op,a,b:unary()}; } return a; }
+    function unary(){ if(peek()&&peek().t==='-'){ p++; return {k:'neg',a:unary()}; } if(peek()&&peek().t==='+'){ p++; return unary(); } return postfix(); }
+    function postfix(){ let a=primary(); while(peek()&&peek().t==='%'){ p++; a={k:'pct',a}; } return a; }
+    function primary(){
+      const t=peek(); if(!t) throw new FErr('SYN');
+      if(t.t==='num'){ p++; return {k:'num',v:t.v}; }
+      if(t.t==='ref'){ p++; if(peek()&&peek().t===':'){ p++; const b=eat('ref'); return {k:'range',a:t.v,b:b.v}; } return {k:'ref',v:t.v}; }
+      if(t.t==='name'){ p++; eat('('); const args=[]; if(peek()&&peek().t!==')'){ args.push(expr()); while(peek()&&peek().t===';'){ p++; args.push(expr()); } } eat(')'); return {k:'fn',name:t.v,args}; }
+      if(t.t==='('){ p++; const a=expr(); eat(')'); return a; }
+      throw new FErr('SYN');
+    }
+    const ast=expr(); if(p<tk.length) throw new FErr('SYN'); return ast;
+  }
+
+  const round=(x,n)=>{ const f=Math.pow(10,n); const y=x*f; return (y<0?-1:1)*Math.round(Math.abs(y)+1e-9)/f; };
+  // cells: {A1: число | 'текст' | '=формула'}; повертає функцію значення клітинки
+  function evaluator(cells){
+    const cache={}, stack=new Set();
+    function cell(addr){
+      if(addr in cache){ if(cache[addr] instanceof FErr) throw cache[addr]; return cache[addr]; }
+      if(stack.has(addr)) throw new FErr('CIRC');
+      const raw=cells[addr]; let v;
+      if(raw===undefined||raw===null||raw==='') v=null;
+      else if(typeof raw==='number') v=raw;
+      else if(String(raw)[0]==='='){ stack.add(addr); try{ v=ev(parse(raw)); }catch(e){ stack.delete(addr); if(!(e instanceof FErr)) throw e; cache[addr]=e; throw e; } stack.delete(addr); }
+      else v=String(raw);
+      cache[addr]=v; return v;
+    }
+    const num=v=>{ if(v===null) return 0; if(typeof v==='number') return v; throw new FErr('V'); };
+    const clean=r=>r.replace(/\$/g,'');
+    function rangeVals(a,b){ const A=parseRef(a),B=parseRef(b),out=[];
+      for(let r=Math.min(A.r,B.r);r<=Math.max(A.r,B.r);r++) for(let c=Math.min(A.c,B.c);c<=Math.max(A.c,B.c);c++){ const v=cell(colL(c)+r); if(typeof v==='number') out.push(v); }
+      return out; }
+    function ev(n){
+      switch(n.k){
+        case 'num': return n.v;
+        case 'ref': return cell(clean(n.v));
+        case 'range': throw new FErr('SYN');
+        case 'neg': return -num(ev(n.a));
+        case 'pct': return num(ev(n.a))/100;
+        case 'bin': { const a=num(ev(n.a)), b=num(ev(n.b));
+          if(n.op==='+') return a+b; if(n.op==='-') return a-b; if(n.op==='*') return a*b;
+          if(b===0) throw new FErr('D'); return a/b; }
+        case 'fn': {
+          const nums=()=>{ const out=[]; for(const a of n.args){ if(a.k==='range') out.push(...rangeVals(a.a,a.b)); else if(a.k==='ref'){ const v=cell(clean(a.v)); if(typeof v==='number') out.push(v); } else out.push(num(ev(a))); } return out; };
+          if(n.name==='ROUND'){ if(n.args.length!==2) throw new FErr('ARGS','ROUND'); return round(num(ev(n.args[0])),num(ev(n.args[1]))); }
+          if(!['SUM','AVERAGE','MEDIAN','MIN','MAX'].includes(n.name)) throw new FErr('FN',n.name);
+          if(!n.args.length) throw new FErr('ARGS',n.name);
+          const v=nums();
+          if(n.name==='SUM') return v.reduce((s,x)=>s+x,0);
+          if(n.name==='MIN') return v.length?Math.min(...v):0;
+          if(n.name==='MAX') return v.length?Math.max(...v):0;
+          if(!v.length) throw new FErr('D');
+          if(n.name==='AVERAGE') return v.reduce((s,x)=>s+x,0)/v.length;
+          const s=v.slice().sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2;
+        }
+      }
+      throw new FErr('SYN');
+    }
+    return addr=>{ try{ return cell(addr); }catch(e){ if(e instanceof FErr) return e; throw e; } };
+  }
+
+  function fmt(v,f){
+    if(v instanceof FErr) return ERRTXT[v.code]||'#ПОМИЛКА';
+    if(v===null) return ''; if(typeof v==='string') return v;
+    const fix=(x,n)=>round(x,n).toFixed(n).replace('.',',');
+    if(f==='0') return fix(v,0); if(f==='0.0') return fix(v,1); if(f==='0.00') return fix(v,2);
+    if(f==='0%') return fix(v*100,0)+'%'; if(f==='0.0%') return fix(v*100,1)+'%';
+    return String(parseFloat(v.toPrecision(10))).replace('.',',');
+  }
+  // клітинки діапазону «C4:E8» у порядку рядок за рядком
+  function rangeCells(rng){ const [a,b]=rng.split(':'); const A=parseRef(a),B=parseRef(b||a),out=[];
+    for(let r=A.r;r<=B.r;r++) for(let c=A.c;c<=B.c;c++) out.push(colL(c)+r); return out; }
+  // вписати формулу в target і скопіювати на діапазон fill
+  function fillFormula(cells,target,fill,formula){
+    const T=parseRef(target), out=Object.assign({},cells);
+    for(const a of rangeCells(fill||target)){ const A=parseRef(a); out[a]=shiftF(formula,A.r-T.r,A.c-T.c); if(out[a][0]!=='=') out[a]='='+out[a]; }
+    return out;
+  }
+  return {FErr,ERRTXT,parse,evaluator,shiftF,fmt,normF,rangeCells,fillFormula,parseRef,colL,colN};
+})();
+if(typeof module!=='undefined') module.exports=SHEET;
+
 /* ============ ТЕМА (дані) ============ */
 const DOCS='https://docs.python.org/3/library/', W3='https://www.w3schools.com/python/';
 const more=(...pairs)=>'<p class="more">Докладніше: '+pairs.map(([t,d,w])=>`<code>${t}</code> — <a href="${d}" target="_blank" rel="noopener">docs.python.org</a>, <a href="${W3+w}" target="_blank" rel="noopener">W3Schools</a>`).join('; ')+'</p>';
@@ -479,7 +617,32 @@ function renderStart(){
 }
 
 const normUk=s=>String(s).toLowerCase().replace(/[’ʼ`ʹ‘′]/g,"'").replace(/i/g,'і').replace(/[.,!?;:«»"()…]/g,' ').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim();
-const KIND={text:'Запиши словами',multi:'Познач усі правильні',read:'Пояснення',predict:'Що виведе',choice:'Вибери відповідь',fix:'Знайди помилку',gaps:'Встав пропущене',code:'Напиши код'};
+const KIND={formula:'Впиши формулу',text:'Запиши відповідь',multi:'Познач усі правильні',read:'Пояснення',predict:'Що виведе',choice:'Вибери відповідь',fix:'Знайди помилку',gaps:'Встав пропущене',code:'Напиши код'};
+/* ---- міні-таблиця ---- */
+function sheetBox(spec,cells,hl){
+  const box=el(`<div class="box"><div class="box-h sheet-h"><span>${esc(spec.title||'Аркуш')}</span><button type="button" class="mini">Показати формули</button></div><div class="sheet-wrap"></div></div>`);
+  const wrap=$('.sheet-wrap',box), btn=$('.mini',box); let showF=false, cur=cells, curHl=hl||spec.hl||[];
+  const f=a=>(spec.fmt||{})[a]||(spec.fmt||{})[a.replace(/\d+/,'')];
+  function draw(){
+    const get=SHEET.evaluator(cur); let h='<table class="sheet"><thead><tr><th></th>'+[...spec.cols].map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
+    for(const r of spec.rows){ h+=`<tr><th>${r}</th>`;
+      for(const c of spec.cols){ const a=c+r, raw=cur[a], isF=typeof raw==='string'&&raw[0]==='='; const v=get(a);
+        const cls=[curHl.includes(a)?'hl':'', (showF&&isF)?'fx':(v instanceof SHEET.FErr?'err':typeof v==='number'?'num':'txt')].join(' ');
+        h+=`<td class="${cls}">${esc(showF&&isF?raw:SHEET.fmt(v,f(a)))}</td>`; }
+      h+='</tr>'; }
+    wrap.innerHTML=h+'</tbody></table>'; btn.textContent=showF?'Показати значення':'Показати формули';
+  }
+  btn.addEventListener('click',()=>{ showF=!showF; draw(); }); draw();
+  return {box,update:(c,h2)=>{ cur=c; if(h2) curHl=h2; draw(); }};
+}
+function keyRow(input,keys){
+  const row=el(`<div class="keys" aria-label="Символи для вставки">${keys.map(k=>`<button type="button" data-ins="${esc(k)}" tabindex="-1">${esc(k)}</button>`).join('')}</div>`);
+  row.addEventListener('pointerdown',e=>{ const b=e.target.closest('button'); if(!b) return; e.preventDefault(); input.focus();
+    const a=input.selectionStart??input.value.length, z=input.selectionEnd??a; input.value=input.value.slice(0,a)+b.dataset.ins+input.value.slice(z); input.selectionStart=input.selectionEnd=a+b.dataset.ins.length; input.dispatchEvent(new Event('input')); });
+  return row;
+}
+const FKEYS=['=','$','(',')','*','/','+','-',';',':'];
+const FMSG={CYR:'У формулі є українські літери. Перемкни клавіатуру на англійську: адреси клітинок і назви функцій пишуть латинськими літерами.',NOEQ:'Формула починається зі знака =.',SEP:'У нашому Excel аргументи функції розділяє крапка з комою, а не кома: наприклад, ROUND(E6;0).',SYN:'Excel не зміг би прочитати таку формулу. Перевір дужки, знаки й адреси клітинок.',ARGS:'У функції не та кількість аргументів.',FN:'Такої функції цей тренажер не знає. Тут достатньо ROUND, SUM, AVERAGE, MEDIAN, MIN, MAX.',CIRC:'Формула посилається сама на себе.',REF:'Після копіювання формула вийшла за межі аркуша.'};
 function renderStep(st){
   S.seen[st.id]=true; save();
   app.innerHTML='';
@@ -504,7 +667,37 @@ function renderStep(st){
   const okHtml=()=>`<div class="fb ok"><b>Правильно.</b><span>${st.explain||''}</span></div>`;
 
   if(st.quote) work.appendChild(el(`<div class="box"><div class="box-h">${esc(st.who||'Речення')}</div><div class="said">${esc(st.quote)}</div></div>`));
-  if(st.kind==='read'){
+  if(st.sheet&&st.kind!=='formula') work.appendChild(sheetBox(st.sheet,st.sheet.cells).box);
+  if(st.kind==='formula'){
+    const fill=st.fill||st.target, cellsOf=SHEET.rangeCells(fill), many=cellsOf.length>1;
+    const apply=(f,over)=>{ const c=SHEET.fillFormula(Object.assign({},st.sheet.cells,over||{}),st.target,fill,f); const get=SHEET.evaluator(c); return {c,vals:cellsOf.map(a=>get(a))}; };
+    const same=(a,b)=>typeof a==='number'&&typeof b==='number'&&Math.abs(a-b)<1e-6;
+    const ff=a=>(st.sheet.fmt||{})[a]||(st.sheet.fmt||{})[a.replace(/\d+/,'')];
+    const saved=S.drafts[st.id+'-f']; const init=saved!==undefined?saved:(st.start||'');
+    const sb=sheetBox(st.sheet, init&&SHEET.normF(init)[0]==='='?(()=>{ try{ SHEET.parse(init); return apply(init).c; }catch(e){ return st.sheet.cells; } })():st.sheet.cells, cellsOf);
+    const f=el(`<div class="field"><label for="fx-${st.id}">Формула для клітинки ${esc(st.target)}${many?` (тренажер скопіює її на ${esc(fill)})`:''}</label>
+      <input type="text" class="mono" id="fx-${st.id}" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(init||'=')}"></div>`);
+    const inp=$('input',f); f.appendChild(keyRow(inp,FKEYS));
+    inp.addEventListener('input',()=>{ S.drafts[st.id+'-f']=inp.value; save(); });
+    const row=el(`<div class="row"><button class="btn" type="button" data-a="put">${many?'Вставити й скопіювати':'Вставити'}</button><button class="btn pri" type="button" data-a="chk">Перевірити</button>${st.start?'<button class="btn quiet" type="button" data-a="reset">Повернути початкову формулу</button>':''}</div>`);
+    const parseOk=v=>{ try{ SHEET.parse(v); return null; }catch(e){ return FMSG[e.code]||FMSG.SYN; } };
+    row.addEventListener('click',e=>{ const a=e.target.dataset.a; if(!a) return;
+      if(a==='reset'){ inp.value=st.start; inp.dispatchEvent(new Event('input')); sb.update(apply(st.start).c); out.innerHTML=''; return; }
+      const v=SHEET.normF(inp.value); inp.value=v; const bad=parseOk(v);
+      if(bad){ out.innerHTML=`<div class="fb bad"><b>Формула не читається.</b><span>${esc(bad)}</span></div>`; return; }
+      const got=apply(v); sb.update(got.c);
+      if(a==='put'){ out.innerHTML=''; return; }
+      const want=apply(st.answer); const k=got.vals.findIndex((x,i)=>!same(x,want.vals[i]));
+      if(k>=0){ miss(); const ad=cellsOf[k], x=got.vals[k];
+        const fnErr=x instanceof SHEET.FErr&&FMSG[x.code]&&!SHEET.ERRTXT[x.code];
+        const near=Object.keys(st.near||{}).find(q=>SHEET.normF(q)===v);
+        out.innerHTML=`<div class="fb bad"><b>Поки що ні.</b><span>${fnErr?esc(FMSG[x.code]):`У клітинці ${ad} вийшло ${esc(SHEET.fmt(x,ff(ad))||'порожньо')}, а має бути ${esc(SHEET.fmt(want.vals[k],ff(ad)))}.${many&&ad!==st.target?` Після копіювання там формула ${esc(got.c[ad])}.`:''}`}</span>${near?`<span>${esc(st.near[near])}</span>`:''}</div>`+hintHtml(); return; }
+      const failAlt=(st.alts||[]).find(o=>{ const g=apply(v,o), w=apply(st.answer,o); return g.vals.some((x,i)=>!same(x,w.vals[i])); });
+      if(failAlt){ miss(); out.innerHTML=`<div class="fb bad"><b>На цих числах збіглося, але формула ще не та.</b><span>${esc(st.altMsg||'Якщо змінити дані в таблиці, результат буде хибний. Формула має брати значення з клітинок, а не містити готові числа чи не той діапазон.')}</span></div>`+hintHtml(); return; }
+      if(!S.done[st.id]) S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); });
+    work.append(sb.box,f,row); if(done) out.innerHTML=okHtml();
+  }
+  else if(st.kind==='read'){
     (st.runs||[]).forEach((run,idx)=>{ const ed=editor(st,idx,run,false);
       const b=el('<div class="row"><button class="btn" type="button">Запустити</button></div>');
       $('button',b).addEventListener('click',()=>ed.runNow()); work.append(ed.box,b); });
@@ -524,13 +717,16 @@ function renderStep(st){
   }
   else if(st.kind==='text'){
     const f=el(`<form class="field"><label for="ans-${st.id}">${esc(st.field||'Запиши словами')}</label>
-      <input type="text" id="ans-${st.id}" autocapitalize="off" autocomplete="off" spellcheck="false" ${done?`value="${esc(st.answers[0])}"`:''}>
+      <input type="text" ${st.norm==='f'?'class="mono"':''} id="ans-${st.id}" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" ${done?`value="${esc(st.answers[0])}"`:''}>
       <div class="row" style="margin-top:6px"><button class="btn pri" type="submit">Перевірити</button></div></form>`);
     f.addEventListener('submit',e=>{ e.preventDefault(); if(S.done[st.id]) return;
-      const a=normUk($('input',f).value); if(!a) return;
-      if(st.answers.some(x=>normUk(x)===a)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
-      else { miss(); const near=Object.keys(st.near||{}).find(k=>normUk(k)===a);
-        out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(near?st.near[near].replace(/^Ні\.\s*/,''):(st.miss||'Перевір відмінок числівника і форму іменника.'))}</span></div>`+hintHtml(); } });
+      const N=st.norm==='f'?(x=>{ x=SHEET.normF(x).replace(/[.;,]+$/,''); return x&&x[0]!=='='?'='+x:x; }):normUk;
+      const a=N($('input',f).value); if(!a||a==='=') return;
+      if(st.norm==='f'&&/[А-ЯЁІЇЄҐ]/.test(a)){ out.innerHTML=`<div class="fb bad"><span>${esc(FMSG.CYR)}</span></div>`; return; }
+      if(st.answers.some(x=>N(x)===a)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
+      else { miss(); const near=Object.keys(st.near||{}).find(k=>N(k)===a);
+        out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(near?st.near[near].replace(/^Ні\.\s*/,''):(st.miss||LESSON.missText||'Не збігається. Перевір ще раз.'))}</span></div>`+hintHtml(); } });
+    if(st.norm==='f') $('input',f).after(keyRow($('input',f),FKEYS));
     work.appendChild(f); if(done) out.innerHTML=okHtml();
   }
   else if(st.kind==='multi'){
