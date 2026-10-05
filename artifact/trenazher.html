@@ -1,0 +1,600 @@
+<title>Тренажер Python 10-І</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@600&display=swap">
+<style>
+/* Layout: one step per screen in a single 38rem column; a segmented progress strip on top, grouped by section; the code console is the only "object" on the page. Syntax colours follow IDLE, which the class uses in the lab. */
+:root{
+  --paper:#f2f4fa; --card:#ffffff; --ink:#141a2e; --muted:#59627f; --line:#d7dcea;
+  --accent:#2b4acb; --accent-ink:#ffffff; --soft:#e6eafb;
+  --ok:#17794a; --ok-soft:#e2f4ea; --bad:#bf2f1d; --bad-soft:#fbe9e5;
+  --code-bg:#f8f9fe; --kw:#c85a00; --str:#0b7f2c; --com:#b3261e; --fn:#7429b8; --out:#1f3fd0;
+  --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#0f1424; --card:#182036; --ink:#e8ecf8; --muted:#9ba6c6; --line:#2c3757;
+  --accent:#8fa6ff; --accent-ink:#0f1424; --soft:#222d4d;
+  --ok:#62d296; --ok-soft:#173326; --bad:#ff8d7a; --bad-soft:#3a1d1a;
+  --code-bg:#111830; --kw:#ffa24a; --str:#72dc8f; --com:#ff9184; --fn:#caa3ff; --out:#a3b8ff;
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --paper:#0f1424; --card:#182036; --ink:#e8ecf8; --muted:#9ba6c6; --line:#2c3757;
+  --accent:#8fa6ff; --accent-ink:#0f1424; --soft:#222d4d;
+  --ok:#62d296; --ok-soft:#173326; --bad:#ff8d7a; --bad-soft:#3a1d1a;
+  --code-bg:#111830; --kw:#ffa24a; --str:#72dc8f; --com:#ff9184; --fn:#caa3ff; --out:#a3b8ff;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.5;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:38rem;margin-inline:auto;display:flex;flex-direction:column;gap:18px}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+code,.mono{font-family:var(--f-mono);font-size:.92em}
+p code,li code{background:var(--soft);padding:.08em .32em;border-radius:4px;white-space:nowrap}
+
+/* top strip */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);padding-block:12px 10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+.top-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px;color:var(--muted)}
+.top-row b{color:var(--ink);font-weight:600}
+.segs{display:flex;gap:10px}
+.seg-group{display:flex;gap:3px;flex:1 1 0;min-width:0}
+.seg{flex:1 1 0;height:12px;min-width:0;border:0;padding:0;border-radius:3px;background:var(--line);cursor:pointer}
+.seg.done{background:var(--ok)}
+.seg.seen{background:var(--muted)}
+.seg.cur{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent)}
+
+/* step */
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(1.45rem,6vw,2rem);line-height:1.2;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:600;font-size:clamp(1.1rem,4.6vw,1.35rem);line-height:1.3;margin:0;text-wrap:balance}
+.step{display:flex;flex-direction:column;gap:14px}
+.step p{margin:0}
+.prose{display:flex;flex-direction:column;gap:10px}
+.more{font-size:14px;color:var(--muted)}
+.kind{align-self:flex-start;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:var(--soft);color:var(--accent)}
+.kind.ok{background:var(--ok-soft);color:var(--ok)}
+
+/* code + console */
+.box{border:1px solid var(--line);border-radius:10px;background:var(--code-bg);overflow:hidden;display:flex;flex-direction:column}
+.box-h{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--muted);padding:7px 12px 0}
+pre.code{margin:0;padding:8px 12px 12px;font-family:var(--f-mono);font-size:15px;line-height:1.55;overflow-x:auto;white-space:pre}
+.t-kw{color:var(--kw)} .t-str{color:var(--str)} .t-com{color:var(--com)} .t-fn{color:var(--fn)}
+textarea.ed{display:block;width:100%;border:0;background:transparent;padding:8px 12px 12px;font-family:var(--f-mono);font-size:16px;line-height:1.55;resize:none;white-space:pre;overflow-x:auto;tab-size:4}
+textarea.ed:focus-visible{outline-offset:-3px}
+.keys{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;border-top:1px solid var(--line);background:var(--card)}
+.keys button{flex:0 0 auto;min-width:40px;height:38px;border:1px solid var(--line);border-radius:7px;background:var(--code-bg);font-family:var(--f-mono);font-size:15px;cursor:pointer}
+.stdin{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding:8px 12px 10px;background:var(--card)}
+.stdin label{font-size:13px;color:var(--muted)}
+.stdin textarea{border:1px solid var(--line);border-radius:7px;background:var(--code-bg);padding:6px 9px;font-family:var(--f-mono);font-size:16px;line-height:1.4;resize:none;width:100%}
+.gap{width:4.8em;max-width:42vw;border:0;border-bottom:2px solid var(--accent);border-radius:4px 4px 0 0;background:var(--soft);font-family:var(--f-mono);font-size:16px;padding:1px 6px;margin-inline:2px}
+.con{border-top:1px solid var(--line);padding:8px 12px 10px;font-family:var(--f-mono);font-size:15px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:15em;overflow-y:auto}
+.con .c-out{color:var(--out)} .con .c-in{color:var(--ink);font-weight:600} .con .c-prompt{color:var(--muted)} .con .c-err{color:var(--bad)}
+.con .c-note{display:block;margin-top:6px;font-family:var(--f-body);font-size:14.5px;color:var(--ink);white-space:normal}
+
+/* controls */
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.btn{min-height:46px;padding:10px 18px;border-radius:9px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;cursor:pointer}
+.btn.pri{background:var(--accent);color:var(--accent-ink)}
+.btn.quiet{border-color:var(--line);color:var(--muted)}
+.btn[disabled]{opacity:.55;cursor:default}
+.nav{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:4px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{text-align:left;min-height:48px;padding:10px 14px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);cursor:pointer}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:14px;color:var(--muted)}
+.field select{min-height:48px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);padding:8px 12px;font-size:17px;width:100%}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pair>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field input[type=text]{min-height:48px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);padding:8px 12px;font-size:17px;width:100%}
+.field input.mono{font-family:var(--f-mono)}
+.fb{border-radius:9px;padding:11px 14px;font-size:16px;display:flex;flex-direction:column;gap:6px}
+.fb.ok{background:var(--ok-soft);border-left:0;color:var(--ink)}
+.fb.ok b{color:var(--ok)}
+.fb.bad{background:var(--bad-soft)}
+.fb.bad b{color:var(--bad)}
+.fb.hint{background:var(--soft)}
+.fb pre{margin:0;font-family:var(--f-mono);font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fb dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:15px}
+.fb dt{color:var(--muted)} .fb dd{margin:0;min-width:0}
+
+/* summary */
+.sum{width:100%;border-collapse:collapse;font-size:15.5px}
+.sum td{padding:8px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.sum td:last-child{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
+.sum .y{color:var(--ok);font-weight:600} .sum .n{color:var(--bad);font-weight:600}
+.score{display:flex;gap:22px;flex-wrap:wrap;align-items:baseline}
+.score .big{font-family:var(--f-display);font-size:2.3rem;line-height:1;font-variant-numeric:tabular-nums}
+.score small{display:block;font-size:13px;color:var(--muted);margin-top:4px}
+.stamp{font-size:14px;color:var(--muted)}
+ul.plain{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:4px}
+@media (prefers-reduced-motion:no-preference){ .seg{transition:background .2s} }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top" hidden>
+    <div class="top-row"><span id="topSec"></span><span id="topCnt"></span></div>
+    <div class="segs" id="segs" role="navigation" aria-label="Кроки теми"></div>
+  </header>
+  <main id="app" aria-live="polite"></main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
+<script>
+/* ============ ТЕМА (дані) ============ */
+const DOCS='https://docs.python.org/3/library/', W3='https://www.w3schools.com/python/';
+const more=(...pairs)=>'<p class="more">Докладніше: '+pairs.map(([t,d,w])=>`<code>${t}</code> — <a href="${d}" target="_blank" rel="noopener">docs.python.org</a>, <a href="${W3+w}" target="_blank" rel="noopener">W3Schools</a>`).join('; ')+'</p>';
+
+const LESSON={
+  id:'py10i-input-types-v1', klass:'10-І', subject:'Python',
+  classes:['10-І','10-М','10-Ф','11-М','11-Ф'], groups:['1','2'],
+  title:'input() і типи даних', plot:'Похід у кіно', minutes:30,
+  submitUrl:'',   // адреса приймача балів (Google Apps Script); порожньо = пробна версія
+  sections:['input() і рядки','int() і float()','Помилки типів','Три ділення','split()'],
+  steps:[
+  {id:'s1',sec:0,kind:'read',title:'input() завжди повертає рядок',
+   body:`<p>Каса кінотеатру питає, скільки квитків потрібно. Що б людина не набрала, <code>input()</code> віддає програмі <b>рядок</b> (тип <code>str</code>), навіть коли на вигляд це число.</p>
+<p>Як це працює: <code>input("текст")</code> показує текст-підказку, чекає на Enter і повертає набране як рядок. <code>type(x)</code> показує тип значення.</p>`,
+   runs:[{code:`tickets = input("Квитків: ")
+print(type(tickets))
+print(tickets * 3)`,stdin:'2'}],
+   after:`<p>Запусти програму. Рядок, помножений на 3, просто повторюється тричі: виходить <code>222</code>, а не 6. Помилки немає, програма рахує не те. Таку помилку видно тільки тоді, коли запускаєш код і дивишся на результат.</p>`+
+     more(['input()',DOCS+'functions.html#input','ref_func_input.asp'],['type()',DOCS+'functions.html#type','ref_func_type.asp'])},
+
+  {id:'s2',sec:0,kind:'predict',title:'Що виведе програма?',
+   body:`<p>Порахуй у голові, не запускаючи.</p>`,
+   variants:[
+    {code:`a = input()   # користувач ввів 4
+b = input()   # користувач ввів 7
+print(a + b)`,answer:'47'},
+    {code:`a = input()   # користувач ввів 3
+b = input()   # користувач ввів 5
+print(a + b)`,answer:'35'},
+    {code:`a = input()   # користувач ввів 6
+b = input()   # користувач ввів 2
+print(a + b)`,answer:'62'}],
+   hint:'Якого типу a і b? Що робить + із двома рядками?',
+   explain:'<code>a</code> і <code>b</code> — рядки, тому <code>+</code> їх склеює, а не додає.'},
+
+  {id:'s3',sec:0,kind:'choice',title:'Який тип у змінної?',
+   body:`<p>Користувач набрав <code>180</code> і натиснув Enter. Який тип має <code>price</code>?</p>`,
+   code:`price = input("Ціна квитка: ")`,
+   options:[
+    {t:'int',why:'Ні. input() не дивиться, що саме набрали: він завжди повертає рядок.'},
+    {t:'str',ok:true,why:'Так. У змінній лежить рядок "180", а не число 180.'},
+    {t:'float',why:'Ні. Дробове число вийде лише після float(...).'},
+    {t:'Залежить від того, що ввели',why:'Ні. Тип не залежить від набраного: це завжди str.'}]},
+
+  {id:'s4',sec:1,kind:'read',title:'int() і float(): з рядка робимо число',
+   body:`<p>Щоб рахувати, рядок треба перетворити. <code>int()</code> робить із рядка ціле число, <code>float()</code> — дробове.</p>
+<p>Читай зсередини назовні: спочатку <code>input()</code> повертає рядок <code>"3"</code>, потім <code>int()</code> робить із нього число <code>3</code>.</p>`,
+   runs:[{code:`tickets = int(input("Квитків: "))
+price = 180
+total = tickets * price
+print("До сплати:", total, "грн")`,stdin:'3'}],
+   after:`<p>Що вибрати: кількість штук — <code>int</code>. Гроші, вага, відстань, де буває дробова частина, — <code>float</code>. <code>float("89.5")</code> дає 89.5.</p>`+
+     more(['int()',DOCS+'functions.html#int','ref_func_int.asp'],['float()',DOCS+'functions.html#float','ref_func_float.asp'])},
+
+  {id:'s5',sec:1,kind:'fix',title:'Каса рахує не те',
+   body:`<p>Програма запускається без помилок, але для 3 квитків замість 540 виводить щось дивне. Запусти, подивись на результат і виправ код.</p>
+<p>Правильний результат для 3 квитків: <code>До сплати: 540 грн</code></p>`,
+   code:`tickets = input("Квитків: ")
+price = 180
+total = tickets * price
+print("До сплати:", total, "грн")`,stdin:'3',
+   tests:[{in:['3'],out:'До сплати: 540 грн'},{in:['5'],out:'До сплати: 900 грн'}],
+   hint:'Якого типу tickets? Що робить «рядок * число»?',
+   explain:'Рядок, помножений на 180, повторювався 180 разів. Після <code>int(...)</code> множаться вже числа.'},
+
+  {id:'s6',sec:1,kind:'gaps',title:'Попкорн',
+   body:`<p>Ціна порції буває дробовою (89.5), кількість порцій завжди ціла. Впиши у пропуски потрібні функції. Для введення <code>89.5</code> і <code>2</code> програма має вивести <code>Порцій: 2</code> і <code>Разом: 179.0 грн</code>.</p>`,
+   code:`price = ____(input("Ціна: "))
+count = ____(input("Штук: "))
+total = price * count
+print("Порцій:", count)
+print("Разом:", total, "грн")`,stdin:'89.5\n2',
+   tests:[{in:['89.5','2'],out:'Порцій: 2\nРазом: 179.0 грн'},{in:['120.5','3'],out:'Порцій: 3\nРазом: 361.5 грн'}],
+   hint:'Для якого зі значень можлива дробова частина?',
+   explain:'Ціна — <code>float</code>, кількість — <code>int</code>. Добуток float і int — це float, тому на екрані 179.0.'},
+
+  {id:'s7',sec:2,kind:'read',title:'Дві помилки: TypeError і ValueError',
+   body:`<p>Коли з типами щось не так, Python зупиняється і називає помилку. Назва підказує, де шукати.</p>
+<ul class="plain"><li><b>TypeError</b>: дія неможлива для таких типів. Наприклад, рядок + число.</li>
+<li><b>ValueError</b>: тип підходить, а вміст ні. <code>int()</code> приймає рядок, але з <code>"дванадцять"</code> числа не зробить.</li></ul>`,
+   runs:[{label:'TypeError',code:`seat = 5
+print("Місце " + seat)`,stdin:''},
+         {label:'ValueError',code:`price = float(input("Ціна: "))
+print(price * 2)`,stdin:'175,5'}],
+   after:`<p>Друга програма впала через кому: у нас дробову частину часто пишуть через кому, а Python розуміє тільки крапку. Допомагає метод рядка <code>replace()</code>: він повертає новий рядок, у якому одне замінено на інше. <code>"175,5".replace(",", ".")</code> дає <code>"175.5"</code>.</p>
+<p class="more">У тренажері текст після назви помилки трохи інший, ніж в IDLE. Для TypeError і ValueError назва й номер рядка ті самі. Довгі «хвости» дробових чисел в IDLE можуть виглядати інакше.</p>`+
+     more(['TypeError',DOCS+'exceptions.html#TypeError','python_ref_exceptions.asp'],['ValueError',DOCS+'exceptions.html#ValueError','python_ref_exceptions.asp'],['replace()',DOCS+'stdtypes.html#str.replace','ref_string_replace.asp'])},
+
+  {id:'s8',sec:2,kind:'choice',title:'Що станеться?',
+   body:`<p>Що буде після запуску цього рядка?</p>`,
+   code:`print("Квитків: " + 3)`,
+   options:[
+    {t:'Виведе: Квитків: 3',why:'Ні. Так було б із комою: print("Квитків:", 3). Плюс рядок із числом не склеює.'},
+    {t:'TypeError',ok:true,why:'Так. Рядок + число — дія, неможлива для цих типів.'},
+    {t:'ValueError',why:'Ні. ValueError буває, коли тип підходить, а вміст ні. Тут не підходять самі типи.'},
+    {t:'Виведе: Квитків: 33',why:'Ні. Повторення — це множення рядка на число, а тут плюс.'}]},
+
+  {id:'s9',sec:2,kind:'choice',title:'А тут?',
+   body:`<p>Що буде після запуску цього рядка?</p>`,
+   code:`n = int("12.5")`,
+   options:[
+    {t:'n дорівнює 12',why:'Ні. int() сам дробову частину з рядка не відкидає. 12 дасть int(float("12.5")).'},
+    {t:'n дорівнює 13',why:'Ні. int() не округлює рядок.'},
+    {t:'TypeError',why:'Ні. Тип підходить: int() приймає рядки. Не підходить вміст рядка.'},
+    {t:'ValueError',ok:true,why:'Так. Тип підходить (рядок), але "12.5" не є записом цілого числа.'}]},
+
+  {id:'s10',sec:2,kind:'fix',title:'Ціна через кому',
+   body:`<p>Касир вводить ціну як звик: <code>175,5</code>. Програма падає. Виправ її так, щоб працювали і кома, і крапка.</p>
+<p>Правильний результат для <code>175,5</code>: <code>Два квитки: 351.0 грн</code></p>`,
+   code:`price = float(input("Ціна: "))
+total = price * 2
+print("Два квитки:", total, "грн")`,stdin:'175,5',
+   tests:[{in:['175,5'],out:'Два квитки: 351.0 грн'},{in:['80,25'],out:'Два квитки: 160.5 грн'},{in:['99.5'],out:'Два квитки: 199.0 грн'},{in:['200'],out:'Два квитки: 400.0 грн'}],
+   hint:'replace() застосовують до рядка, тобто до того, що повернув input(), ще до float().',
+   explain:'Порядок такий: <code>input()</code> дає рядок, <code>.replace(",", ".")</code> міняє кому на крапку, <code>float()</code> робить число.'},
+
+  {id:'s11',sec:3,kind:'read',title:'Три ділення: /  //  %',
+   body:`<p>Фільм триває 148 хвилин. Скільки це годин і хвилин?</p>`,
+   runs:[{code:`minutes = 148
+print(minutes / 60)
+print(minutes // 60)
+print(minutes % 60)`,stdin:''}],
+   after:`<ul class="plain"><li><code>/</code> — звичайне ділення, результат завжди <code>float</code>.</li>
+<li><code>//</code> — ділення націло: скільки разів 60 вміщується повністю. Тут 2.</li>
+<li><code>%</code> — остача: скільки лишилося після цього. Тут 28.</li></ul>
+<p>Перевірка: 2 · 60 + 28 = 148.</p>`+
+     more(['/ // %',DOCS+'stdtypes.html#numeric-types-int-float-complex','python_operators.asp'])},
+
+  {id:'s12',sec:3,kind:'predict',title:'Що виведе програма?',
+   body:`<p>Порахуй у голові. Запиши відповідь так, як її надрукує <code>print</code>.</p>`,
+   variants:[
+    {code:`minutes = 135
+print(minutes // 60, minutes % 60)`,answer:'2 15'},
+    {code:`minutes = 200
+print(minutes // 60, minutes % 60)`,answer:'3 20'},
+    {code:`minutes = 95
+print(minutes // 60, minutes % 60)`,answer:'1 35'}],
+   hint:'Спочатку: скільки повних разів по 60? Потім: скільки лишилося? print через кому ставить між значеннями пробіл.',
+   explain:'Перше число — повні години, друге — хвилини, що лишилися.'},
+
+  {id:'s13',sec:3,kind:'code',title:'Напиши сам: тривалість сеансу',
+   body:`<p>Програма читає тривалість фільму у хвилинах (ціле число) і виводить її в годинах і хвилинах точно в такому вигляді:</p>
+<p><code>2 год 28 хв</code></p>
+<p>Це результат для 148 хвилин. Напиши програму, запусти на своїх даних, тоді перевір.</p>`,
+   code:``,stdin:'148',
+   tests:[{in:['148'],out:'2 год 28 хв'},{in:['90'],out:'1 год 30 хв'},{in:['45'],out:'0 год 45 хв'},{in:['120'],out:'2 год 0 хв'}],
+   hint:'Три кроки: прочитати й перетворити на int; години — це // 60; хвилини — це % 60. Вивести можна так: print(h, "год", m, "хв"). Назви змінних пиши латинськими літерами.',
+   explain:'Програма працює для будь-якої кількості хвилин, а не лише для 148: це й перевіряли інші тести.'},
+
+  {id:'s14',sec:4,kind:'read',title:'split(): кілька значень в одному рядку',
+   body:`<p>Глядач вводить ряд і місце одним рядком: <code>7 12</code>. Метод <code>split()</code> розрізає рядок за пробілами і повертає частини. Їх можна одразу розкласти по змінних.</p>`,
+   runs:[{code:`place = input("Ряд і місце: ")
+row, seat = place.split()
+print("Ряд:", row)
+print("Місце:", seat)
+print(type(seat))`,stdin:'7 12'}],
+   after:`<p>Два правила. Частин має бути стільки ж, скільки змінних ліворуч, інакше буде ValueError: спробуй ввести лише <code>7</code>. І кожна частина — знову рядок: щоб рахувати, її треба перетворити.</p>`+
+     more(['split()',DOCS+'stdtypes.html#str.split','ref_string_split.asp'])},
+
+  {id:'s15',sec:4,kind:'fix',title:'Сусіднє місце',
+   body:`<p>Програма має підказати номер сусіднього місця, на одиницю більший. Вона падає. Знайди причину й виправ.</p>
+<p>Правильний результат для <code>7 12</code>: <code>Сусіднє місце: 13</code></p>`,
+   code:`place = input("Ряд і місце: ")
+row, seat = place.split()
+print("Сусіднє місце:", seat + 1)`,stdin:'7 12',
+   tests:[{in:['7 12'],out:'Сусіднє місце: 13'},{in:['3 9'],out:'Сусіднє місце: 10'}],
+   hint:'Прочитай назву помилки. Якого типу seat після split()?',
+   explain:'<code>split()</code> повертає рядки. До числа 1 можна додати тільки число, тому потрібен <code>int(seat)</code>.'},
+
+  {id:'s16',sec:4,kind:'code',title:'Напиши сам: каса кінотеатру',
+   body:`<p>Перший рядок введення: кількість квитків і ціна одного квитка через пробіл, обидва числа цілі. Другий рядок: скільки гривень дав покупець, теж ціле число.</p>
+<p>Для введення <code>3 180</code> і <code>1000</code> програма має вивести рівно два рядки:</p>
+<div class="box"><pre class="code">До сплати: 540 грн
+Решта: 460 грн</pre></div>`,
+   code:``,stdin:'3 180\n1000',
+   tests:[{in:['3 180','1000'],out:'До сплати: 540 грн\nРешта: 460 грн'},{in:['2 175','500'],out:'До сплати: 350 грн\nРешта: 150 грн'},{in:['1 220','220'],out:'До сплати: 220 грн\nРешта: 0 грн'}],
+   hint:'Перший рядок розріж через split() і перетвори обидві частини на int. Другий input() — гроші покупця. Спочатку порахуй суму, потім решту.',
+   explain:'У цій програмі є все з теми: input(), split(), int() і арифметика.'}
+  ]
+};
+
+/* ============ РУШІЙ ============ */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const el=(html)=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild;};
+const isEx=s=>s.kind!=='read';
+const KEY='trn:'+LESSON.id;
+let S={name:'',klass:'',group:'',i:-1,done:{},tries:{},seen:{},drafts:{},sent:false};
+try{const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw));}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
+
+const KW=/^(?:and|or|not|if|else|elif|for|while|in|import|from|def|return|True|False|None|pass|break|continue)$/;
+const BI=/^(?:print|input|int|float|str|type|len|round|bool|abs|min|max)$/;
+function hl(src){
+  const re=/(#.*$)|(f?"(?:[^"\\\n]|\\.)*"|f?'(?:[^'\\\n]|\\.)*')|([A-Za-z_]\w*)/gm;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index)); const t=esc(m[0]);
+    out+= m[1]?`<span class="t-com">${t}</span>` : m[2]?`<span class="t-str">${t}</span>` : KW.test(m[0])?`<span class="t-kw">${t}</span>` : BI.test(m[0])?`<span class="t-fn">${t}</span>` : t;
+    last=re.lastIndex;
+  }
+  return out+esc(src.slice(last));
+}
+function hash(str){let h=2166136261;for(const ch of str){h^=ch.codePointAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+const variantOf=st=>st.variants? st.variants[hash(S.name.trim().toLowerCase()+st.id)%st.variants.length] : st;
+const norm=s=>String(s).replace(/\r/g,'').split('\n').map(l=>l.trim().replace(/\s+/g,' ')).filter((l,i,a)=>l!==''||a.slice(i).some(x=>x!=='')).join('\n').trim();
+
+/* ---- запуск Python у браузері ---- */
+const NOTES={
+  TypeError:'Дія неможлива для таких типів, наприклад рядок + число. Перевір, чи перетворено введене на число.',
+  ValueError:'Тип підходить, а вміст ні: рядок не вдається перетворити на число, або частин після split() не стільки, скільки змінних.',
+  NameError:'Такого імені Python не знає. Перевір, чи немає одруківки в назві змінної або функції.',
+  SyntaxError:'Python не зміг прочитати код. Перевір дужки, лапки й відступи в цьому рядку та в рядку перед ним. Назви змінних пиши латинськими літерами.',
+  IndentationError:'Зайвий або пропущений відступ на початку рядка.',
+  ZeroDivisionError:'Ділення на нуль.',
+  TimeLimitError:'Програма працює надто довго. Схоже, вона не може зупинитися.',
+  NoInput:'Програма просить ще одне значення, а в полі введення вони закінчилися. Додай значення з нового рядка.',
+  LoadError:'Python ще не завантажився. Перевір інтернет і онови сторінку.'
+};
+function runPy(code,inputs){
+  return new Promise(resolve=>{
+    const segs=[]; let printed=''; let k=0, starved=false;
+    if(typeof Sk==='undefined'){ resolve({segs,printed,error:{type:'LoadError',msg:'',line:0}}); return; }
+    Sk.configure({
+      output:s=>{printed+=s; segs.push({k:'out',s});},
+      read:f=>{ if(!Sk.builtinFiles||Sk.builtinFiles.files[f]===undefined) throw "File not found: '"+f+"'"; return Sk.builtinFiles.files[f]; },
+      inputfun:p=>{ if(p) segs.push({k:'prompt',s:String(p)}); if(k>=inputs.length){ starved=true; throw new Error('no input'); } const v=inputs[k++]; segs.push({k:'in',s:v+'\n'}); return v; },
+      inputfunTakesPrompt:true, __future__:Sk.python3, execLimit:3000
+    });
+    Sk.misceval.asyncToPromise(()=>Sk.importMainWithBody('<stdin>',false,code,true)).then(
+      ()=>resolve({segs,printed,error:null}),
+      e=>{
+        let type=starved?'NoInput':(e&&e.tp$name)||'Error', line=(e&&e.traceback&&e.traceback[0]&&e.traceback[0].lineno)||0;
+        let msg=starved?'':String(e).replace(/ on line \d+$/,'').replace(/^\w+:\s*/,'');
+        resolve({segs,printed,error:{type,msg,line}});
+      });
+  });
+}
+function showRun(con,res){
+  con.hidden=false;
+  let h=res.segs.map(g=>`<span class="c-${g.k}">${esc(g.s)}</span>`).join('');
+  if(res.error){
+    const e=res.error;
+    if(h && !/\n<\/span>$/.test(h)) h+='\n';
+    if(e.type!=='NoInput'&&e.type!=='LoadError') h+=`<span class="c-err">${esc(e.type)}: ${esc(e.msg)}${e.line?` (рядок ${e.line})`:''}</span>`;
+    h+=`<span class="c-note">${esc(NOTES[e.type]||'Програма зупинилася з помилкою. Прочитай її назву і номер рядка.')}</span>`;
+  } else if(!res.segs.length){ h='<span class="c-prompt">Програма нічого не вивела.</span>'; }
+  con.innerHTML=h;
+}
+const linesOf=v=>{const a=v.replace(/\r/g,'').split('\n'); while(a.length&&a[a.length-1]==='') a.pop(); return a;};
+
+/* ---- редактор коду ---- */
+const KEYS=[['Tab','    '],['(','('],[')',')'],['"','"'],[':',':'],['=','='],[',',','],['.','.'],['_','_'],['[','['],[']',']'],['%','%'],['/','/'],['*','*'],['+','+'],['-','-'],['#','#'],["'","'"]];
+function fit(ta,min){ ta.rows=Math.max(min,ta.value.split('\n').length+ (min>2?1:0)); }
+function insertAt(ta,text){ const a=ta.selectionStart,b=ta.selectionEnd; ta.value=ta.value.slice(0,a)+text+ta.value.slice(b); ta.selectionStart=ta.selectionEnd=a+text.length; ta.dispatchEvent(new Event('input')); }
+function editor(st,idx,run,editable){
+  const id=st.id+'-'+idx, dkey=id;
+  const start=(editable && S.drafts[dkey]!==undefined)? S.drafts[dkey] : run.code;
+  const box=el(`<div class="box">
+    <div class="box-h">${esc(run.label||(st.kind==='code'?'Твоя програма':'Програма'))}</div>
+    <textarea class="ed" id="ed-${id}" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Код програми" placeholder="# пиши код тут"></textarea>
+    <div class="keys" aria-label="Символи для вставки">${KEYS.map(([l,v])=>`<button type="button" data-ins="${esc(v)}" tabindex="-1">${esc(l)}</button>`).join('')}</div>
+    <div class="stdin"><label for="in-${id}">Що вводить користувач (кожне значення з нового рядка)</label>
+      <textarea id="in-${id}" rows="1" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>
+    <div class="con" hidden></div></div>`);
+  const ta=$('.ed',box), inp=$('.stdin textarea',box), con=$('.con',box);
+  ta.value=start; inp.value=run.stdin||''; fit(ta,st.kind==='code'?5:2); fit(inp,1);
+  ta.addEventListener('input',()=>{fit(ta,st.kind==='code'?5:2); S.drafts[dkey]=ta.value; save();});
+  inp.addEventListener('input',()=>fit(inp,1));
+  ta.addEventListener('keydown',e=>{ if(e.key==='Tab'&&!e.shiftKey){e.preventDefault(); insertAt(ta,'    ');} });
+  $('.keys',box).addEventListener('pointerdown',e=>{ const b=e.target.closest('button'); if(!b) return; e.preventDefault(); ta.focus(); insertAt(ta,b.dataset.ins); });
+  return {box,ta,inp,con, code:()=>ta.value, runNow:async()=>{ const r=await runPy(ta.value,linesOf(inp.value)); showRun(con,r); return r; }};
+}
+
+/* ---- перевірка тестами ---- */
+async function check(code,tests){
+  for(let t=0;t<tests.length;t++){
+    const r=await runPy(code,tests[t].in);
+    const want=norm(tests[t].out).split('\n'), got=norm(r.printed).split('\n');
+    const tail=got.slice(-want.length).join('\n');
+    if(r.error || tail!==want.join('\n')) return {ok:false,t,test:tests[t],res:r};
+  }
+  return {ok:true};
+}
+function failBox(f,code){
+  const r=f.res, first=f.t===0;
+  let got = r.printed.trim()? esc(r.printed.trim().slice(0,400)) : (r.error?'':'<i>нічого</i>');
+  if(r.error) got+=(r.printed.trim()?'\n':'')+esc(r.error.type==='NoInput'?'програма чекає ще одного введення':r.error.type+(r.error.line?` (рядок ${r.error.line})`:''));
+  return `<div class="fb bad"><b>${first?'Поки що ні.':'На перших даних працює, на інших ні.'}</b>
+    <dl><dt>Введено</dt><dd><pre>${esc(f.test.in.join('\n'))||'—'}</pre></dd>
+    ${first?`<dt>Треба</dt><dd><pre>${esc(f.test.out)}</pre></dd>`:''}
+    <dt>Вивела</dt><dd><pre>${got}</pre></dd></dl>
+    ${first?'':'<span>Перевір, чи програма працює для будь-яких даних, а не лише для прикладу.</span>'}</div>`;
+}
+
+/* ---- екрани ---- */
+const app=$('#app');
+const total=LESSON.steps.filter(isEx).length;
+const passed=()=>LESSON.steps.filter(s=>isEx(s)&&S.done[s.id]).length;
+const grade=()=>Math.max(1,Math.round(12*passed()/total));
+
+function drawTop(){
+  const top=$('#top'); top.hidden=S.i<0;
+  if(S.i<0) return;
+  const fin=S.i>=LESSON.steps.length, st=LESSON.steps[Math.min(S.i,LESSON.steps.length-1)];
+  $('#topSec').innerHTML=fin?'<b>Підсумок</b>':`<b>${esc(LESSON.sections[st.sec])}</b>`;
+  $('#topCnt').textContent=`вправ зараховано: ${passed()} з ${total}`;
+  const segs=$('#segs'); segs.innerHTML='';
+  LESSON.sections.forEach((name,si)=>{
+    const g=el(`<div class="seg-group" title="${esc(name)}"></div>`);
+    LESSON.steps.forEach((s,idx)=>{ if(s.sec!==si) return;
+      const b=el(`<button type="button" class="seg" aria-label="Крок ${idx+1}: ${esc(s.title)}"></button>`);
+      if(S.done[s.id]) b.classList.add('done'); else if(S.seen[s.id]) b.classList.add('seen');
+      if(idx===S.i) b.classList.add('cur');
+      b.addEventListener('click',()=>go(idx)); g.appendChild(b); });
+    segs.appendChild(g);
+  });
+}
+function go(i){ S.i=i; save(); render(); window.scrollTo(0,0); }
+
+function render(){
+  drawTop();
+  if(S.i<0) return renderStart();
+  if(S.i>=LESSON.steps.length) return renderEnd();
+  renderStep(LESSON.steps[S.i]);
+}
+
+function renderStart(){
+  app.innerHTML='';
+  const v=el(`<section class="step" style="padding-top:28px">
+    <span class="eyebrow">${esc(LESSON.subject)} · сюжет «${esc(LESSON.plot)}»</span>
+    <h1>${esc(LESSON.title)}</h1>
+    <div class="prose"><p>Тут ${LESSON.steps.length} кроків: коротке пояснення, одразу вправа. Вправ ${total}, код запускається просто в телефоні. Часу треба приблизно ${LESSON.minutes} хвилин.</p>
+    <p>Спроб скільки завгодно. Можна перерватися і продовжити пізніше з цього ж телефона.</p></div>
+    <form class="field" id="startForm"><label for="who">Прізвище та ім'я</label>
+      <input type="text" id="who" autocomplete="name" value="${esc(S.name)}" placeholder="Наприклад: Шевченко Тарас">
+      <div class="pair">
+        <div><label for="kl">Клас</label><select id="kl">${LESSON.classes.map(c=>`<option ${c===(S.klass||LESSON.klass)?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+        <div><label for="gr">Група</label><select id="gr"><option value="">обери</option>${LESSON.groups.map(g=>`<option ${g===S.group?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
+      </div>
+      <div class="fb bad" id="whoErr" hidden>Впиши прізвище та ім'я і обери групу, щоб учитель бачив, чий це результат.</div>
+      <div class="row" style="margin-top:8px"><button class="btn pri" type="submit">Почати</button></div></form>
+  </section>`);
+  $('#startForm',v).addEventListener('submit',e=>{ e.preventDefault(); const n=$('#who',v).value.trim().replace(/\s+/g,' ');
+    const g=$('#gr',v).value; if(n.split(' ').length<2||!g){ $('#whoErr',v).hidden=false; return; } S.name=n; S.klass=$('#kl',v).value; S.group=g; go(0); });
+  app.appendChild(v);
+}
+
+const KIND={read:'Пояснення',predict:'Що виведе',choice:'Вибери відповідь',fix:'Знайди помилку',gaps:'Встав пропущене',code:'Напиши код'};
+function renderStep(st){
+  S.seen[st.id]=true; save();
+  app.innerHTML='';
+  const done=!!S.done[st.id];
+  const v=el(`<section class="step" style="padding-top:6px">
+    <span class="kind ${done?'ok':''}">${KIND[st.kind]}${done?' · зараховано':''}</span>
+    <h2>${esc(st.title)}</h2>
+    <div class="prose">${st.body||''}</div>
+    <div class="work step"></div>
+    <div class="out step"></div>
+    <div class="nav"><button class="btn quiet" type="button" id="prev" ${S.i===0?'disabled':''}>Назад</button>
+      <button class="btn ${(!isEx(st)||done)?'pri':'quiet'}" type="button" id="next">${(!isEx(st)||done)?(S.i===LESSON.steps.length-1?'До підсумку':'Далі'):'Пропустити'}</button></div>
+  </section>`);
+  $('#prev',v).addEventListener('click',()=>go(S.i-1));
+  $('#next',v).addEventListener('click',()=>go(S.i+1));
+  const work=$('.work',v), out=$('.out',v);
+  const solved=()=>{ S.done[st.id]=true; save(); drawTop();
+    const k=$('.kind',v); k.classList.add('ok'); k.textContent=KIND[st.kind]+' · зараховано';
+    const n=$('#next',v); n.className='btn pri'; n.textContent=S.i===LESSON.steps.length-1?'До підсумку':'Далі'; };
+  const miss=()=>{ S.tries[st.id]=(S.tries[st.id]||0)+1; save(); };
+  const hintHtml=()=> (st.hint && (S.tries[st.id]||0)>=2 && !S.done[st.id])? `<div class="fb hint"><b>Підказка</b><span>${esc(st.hint)}</span></div>`:'';
+  const okHtml=()=>`<div class="fb ok"><b>Правильно.</b><span>${st.explain||''}</span></div>`;
+
+  if(st.kind==='read'){
+    st.runs.forEach((run,idx)=>{ const ed=editor(st,idx,run,false);
+      const b=el('<div class="row"><button class="btn" type="button">Запустити</button></div>');
+      $('button',b).addEventListener('click',()=>ed.runNow()); work.append(ed.box,b); });
+    if(st.after) out.innerHTML=`<div class="prose">${st.after}</div>`;
+  }
+  else if(st.kind==='choice'){
+    if(st.code) work.appendChild(el(`<div class="box"><pre class="code">${hl(st.code)}</pre></div>`));
+    const opts=el('<div class="opts" role="group" aria-label="Варіанти відповіді"></div>');
+    st.options.forEach(o=>{ const b=el(`<button type="button" class="opt">${esc(o.t)}</button>`);
+      if(done&&o.ok) b.classList.add('right');
+      b.addEventListener('click',()=>{ if(S.done[st.id]) return;
+        if(o.ok){ S.tries[st.id]=(S.tries[st.id]||0)+1; b.classList.add('right'); out.innerHTML=`<div class="fb ok"><b>Правильно.</b><span>${esc(o.why)}</span></div>`; solved(); }
+        else { miss(); b.classList.add('wrong'); out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(o.why)}</span></div>`; } });
+      opts.appendChild(b); });
+    work.appendChild(opts);
+    if(done) out.innerHTML=`<div class="fb ok"><b>Правильно.</b><span>${esc(st.options.find(o=>o.ok).why)}</span></div>`;
+  }
+  else if(st.kind==='predict'){
+    const va=variantOf(st);
+    work.appendChild(el(`<div class="box"><pre class="code">${hl(va.code)}</pre></div>`));
+    const f=el(`<form class="field"><label for="ans-${st.id}">Програма виведе</label>
+      <input type="text" class="mono" id="ans-${st.id}" autocapitalize="off" autocomplete="off" spellcheck="false" ${done?`value="${esc(va.answer)}"`:''}>
+      <div class="row" style="margin-top:6px"><button class="btn pri" type="submit">Перевірити</button></div></form>`);
+    f.addEventListener('submit',e=>{ e.preventDefault(); if(S.done[st.id]) return;
+      const a=$('input',f).value; if(!a.trim()) return;
+      if(norm(a)===norm(va.answer)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
+      else { miss(); out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>Пройди програму рядок за рядком і стеж за типом кожної змінної.</span></div>`+hintHtml(); } });
+    work.appendChild(f); if(done) out.innerHTML=okHtml();
+  }
+  else if(st.kind==='gaps'){
+    const parts=st.code.split('____'); const saved=S.drafts[st.id+'-g']||[];
+    const pre=el('<pre class="code"></pre>');
+    parts.forEach((p,i)=>{ pre.insertAdjacentHTML('beforeend',hl(p)); if(i<parts.length-1) pre.insertAdjacentHTML('beforeend',`<input class="gap" id="gap-${st.id}-${i}" aria-label="Пропуск ${i+1}" autocapitalize="off" autocomplete="off" spellcheck="false" value="${esc(saved[i]||'')}">`); });
+    const box=el(`<div class="box"><div class="box-h">Програма з пропусками</div></div>`); box.appendChild(pre);
+    box.appendChild(el(`<div class="stdin"><label for="in-${st.id}">Що вводить користувач (кожне значення з нового рядка)</label><textarea id="in-${st.id}" rows="2" spellcheck="false" autocapitalize="off">${esc(st.stdin||'')}</textarea></div>`));
+    const con=el('<div class="con" hidden></div>'); box.appendChild(con);
+    const gaps=()=>[...pre.querySelectorAll('.gap')].map(g=>g.value.trim());
+    const build=()=>{ const g=gaps(); return parts.map((p,i)=>p+(i<g.length?g[i]:'')).join(''); };
+    pre.addEventListener('input',()=>{ S.drafts[st.id+'-g']=gaps(); save(); });
+    const row=el('<div class="row"><button class="btn" type="button" data-a="run">Запустити</button><button class="btn pri" type="button" data-a="chk">Перевірити</button></div>');
+    row.addEventListener('click',async e=>{ const a=e.target.dataset.a; if(!a) return;
+      if(gaps().some(g=>!g)){ out.innerHTML='<div class="fb bad"><span>Заповни всі пропуски.</span></div>'; return; }
+      if(a==='run'){ showRun(con,await runPy(build(),linesOf($('textarea',box).value))); return; }
+      const r=await check(build(),st.tests);
+      if(r.ok){ if(!S.done[st.id]) S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); } else { miss(); out.innerHTML=failBox(r)+hintHtml(); } });
+    work.append(box,row); if(done) out.innerHTML=okHtml();
+  }
+  else { /* fix, code */
+    const ed=editor(st,0,{code:st.code,stdin:st.stdin},true);
+    const row=el(`<div class="row"><button class="btn" type="button" data-a="run">Запустити</button><button class="btn pri" type="button" data-a="chk">Перевірити</button>${st.kind==='fix'?'<button class="btn quiet" type="button" data-a="reset">Повернути початковий код</button>':''}</div>`);
+    row.addEventListener('click',async e=>{ const a=e.target.dataset.a; if(!a) return;
+      if(a==='reset'){ ed.ta.value=st.code; ed.ta.dispatchEvent(new Event('input')); ed.con.hidden=true; return; }
+      if(a==='run'){ await ed.runNow(); return; }
+      if(!ed.code().trim()){ out.innerHTML='<div class="fb bad"><span>Спочатку напиши програму.</span></div>'; return; }
+      const r=await check(ed.code(),st.tests);
+      if(r.ok){ if(!S.done[st.id]) S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); } else { miss(); out.innerHTML=failBox(r)+hintHtml(); } });
+    work.append(ed.box,row); if(done) out.innerHTML=okHtml();
+  }
+  app.appendChild(v);
+}
+
+function renderEnd(){
+  app.innerHTML='';
+  const rows=LESSON.steps.filter(isEx).map(s=>{ const ok=!!S.done[s.id], n=S.tries[s.id]||0;
+    return `<tr><td><span class="${ok?'y':'n'}">${ok?'✓':'—'}</span> ${esc(s.title)} <span class="more">(${KIND[s.kind].toLowerCase()})</span></td><td>${n?('спроб: '+n):'не розпочато'}</td></tr>`; }).join('');
+  const now=new Date(), stamp=now.toLocaleDateString('uk-UA')+' '+now.toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'});
+  const v=el(`<section class="step" style="padding-top:6px">
+    <span class="eyebrow">${esc(S.klass)}, група ${esc(S.group)} · ${esc(LESSON.title)}</span>
+    <h1>${esc(S.name)}</h1>
+    <div class="score"><div><span class="big">${passed()} з ${total}</span><small>вправ зараховано</small></div>
+      <div><span class="big">${grade()}</span><small>орієнтовна оцінка з 12</small></div></div>
+    <div id="sendBox"></div>
+    <table class="sum"><tbody>${rows}</tbody></table>
+    <p class="stamp">Станом на ${esc(stamp)}. Незараховані вправи можна доробити: натисни на сіру смужку вгорі.</p>
+    <div class="nav"><button class="btn quiet" type="button" id="back">Назад до вправ</button>
+      <button class="btn quiet" type="button" id="reset">Почати спочатку</button></div>
+    <div id="resetBox"></div>
+  </section>`);
+  $('#back',v).addEventListener('click',()=>go(LESSON.steps.length-1));
+  $('#reset',v).addEventListener('click',()=>{ const b=$('#resetBox',v);
+    b.innerHTML='<div class="fb bad"><span>Увесь прогрес у цій темі буде стерто.</span><div class="row"><button class="btn" type="button" id="yes">Стерти і почати спочатку</button><button class="btn quiet" type="button" id="no">Залишити</button></div></div>';
+    $('#no',b).addEventListener('click',()=>b.innerHTML='');
+    $('#yes',b).addEventListener('click',()=>{ S={name:S.name,klass:S.klass,group:S.group,i:-1,done:{},tries:{},seen:{},drafts:{},sent:false}; save(); render(); }); });
+  const sb=$('#sendBox',v);
+  if(!LESSON.submitUrl){ sb.innerHTML='<div class="fb hint"><b>Пробна версія</b><span>Результат учителю не надсилається. Покажи цей екран або зроби знімок.</span></div>'; }
+  else {
+    const send=()=>{ sb.innerHTML='<div class="fb hint"><span>Надсилаю результат учителю…</span></div>';
+      const body=JSON.stringify({lesson:LESSON.id,klass:S.klass,group:S.group,name:S.name,passed:passed(),total,grade:grade(),tries:S.tries,done:Object.keys(S.done),ts:now.toISOString()});
+      fetch(LESSON.submitUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body})
+       .then(()=>{ S.sent=passed(); save(); sb.innerHTML='<div class="fb ok"><b>Результат надіслано учителю.</b><span>Якщо доробиш вправи, відкрий підсумок ще раз: надішлеться оновлений.</span></div>'; })
+       .catch(()=>{ sb.innerHTML='<div class="fb bad"><b>Не вдалося надіслати.</b><span>Перевір інтернет і натисни ще раз.</span><div class="row"><button class="btn" type="button" id="again">Надіслати ще раз</button></div></div>'; $('#again',sb).addEventListener('click',send); }); };
+    send();
+  }
+  app.appendChild(v);
+}
+render();
+</script>
