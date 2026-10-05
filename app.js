@@ -147,9 +147,9 @@ function render(){
 function renderStart(){
   app.innerHTML='';
   const v=el(`<section class="step" style="padding-top:28px">
-    <span class="eyebrow">${esc(LESSON.subject)} · сюжет «${esc(LESSON.plot)}»</span>
+    <span class="eyebrow">${esc(LESSON.subject)}${LESSON.plot?` · сюжет «${esc(LESSON.plot)}»`:''}</span>
     <h1>${esc(LESSON.title)}</h1>
-    <div class="prose"><p>Тут ${LESSON.steps.length} кроків: коротке пояснення, одразу вправа. Вправ ${total}, код запускається просто в телефоні. Часу треба приблизно ${LESSON.minutes} хвилин.</p>
+    <div class="prose">${LESSON.intro||`<p>Тут ${LESSON.steps.length} кроків: коротке пояснення, одразу вправа. Вправ ${total}, код запускається просто в телефоні. Часу треба приблизно ${LESSON.minutes} хвилин.</p>`}
     <p>Спроб скільки завгодно. Можна перерватися і продовжити пізніше з цього ж телефона.</p></div>
     <form class="field" id="startForm"><label for="who">Прізвище та ім'я</label>
       <input type="text" id="who" autocomplete="name" value="${esc(S.name)}" placeholder="Наприклад: Шевченко Тарас">
@@ -165,7 +165,8 @@ function renderStart(){
   app.appendChild(v);
 }
 
-const KIND={read:'Пояснення',predict:'Що виведе',choice:'Вибери відповідь',fix:'Знайди помилку',gaps:'Встав пропущене',code:'Напиши код'};
+const normUk=s=>String(s).toLowerCase().replace(/[’ʼ`ʹ‘′]/g,"'").replace(/i/g,'і').replace(/[.,!?;:«»"()…]/g,' ').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim();
+const KIND={text:'Запиши словами',multi:'Познач усі правильні',read:'Пояснення',predict:'Що виведе',choice:'Вибери відповідь',fix:'Знайди помилку',gaps:'Встав пропущене',code:'Напиши код'};
 function renderStep(st){
   S.seen[st.id]=true; save();
   app.innerHTML='';
@@ -189,8 +190,9 @@ function renderStep(st){
   const hintHtml=()=> (st.hint && (S.tries[st.id]||0)>=2 && !S.done[st.id])? `<div class="fb hint"><b>Підказка</b><span>${esc(st.hint)}</span></div>`:'';
   const okHtml=()=>`<div class="fb ok"><b>Правильно.</b><span>${st.explain||''}</span></div>`;
 
+  if(st.quote) work.appendChild(el(`<div class="box"><div class="box-h">${esc(st.who||'Речення')}</div><div class="said">${esc(st.quote)}</div></div>`));
   if(st.kind==='read'){
-    st.runs.forEach((run,idx)=>{ const ed=editor(st,idx,run,false);
+    (st.runs||[]).forEach((run,idx)=>{ const ed=editor(st,idx,run,false);
       const b=el('<div class="row"><button class="btn" type="button">Запустити</button></div>');
       $('button',b).addEventListener('click',()=>ed.runNow()); work.append(ed.box,b); });
     if(st.after) out.innerHTML=`<div class="prose">${st.after}</div>`;
@@ -206,6 +208,31 @@ function renderStep(st){
       opts.appendChild(b); });
     work.appendChild(opts);
     if(done) out.innerHTML=`<div class="fb ok"><b>Правильно.</b><span>${esc(st.options.find(o=>o.ok).why)}</span></div>`;
+  }
+  else if(st.kind==='text'){
+    const f=el(`<form class="field"><label for="ans-${st.id}">${esc(st.field||'Запиши словами')}</label>
+      <input type="text" id="ans-${st.id}" autocapitalize="off" autocomplete="off" spellcheck="false" ${done?`value="${esc(st.answers[0])}"`:''}>
+      <div class="row" style="margin-top:6px"><button class="btn pri" type="submit">Перевірити</button></div></form>`);
+    f.addEventListener('submit',e=>{ e.preventDefault(); if(S.done[st.id]) return;
+      const a=normUk($('input',f).value); if(!a) return;
+      if(st.answers.some(x=>normUk(x)===a)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
+      else { miss(); const near=Object.keys(st.near||{}).find(k=>normUk(k)===a);
+        out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(near?st.near[near].replace(/^Ні\.\s*/,''):(st.miss||'Перевір відмінок числівника і форму іменника.'))}</span></div>`+hintHtml(); } });
+    work.appendChild(f); if(done) out.innerHTML=okHtml();
+  }
+  else if(st.kind==='multi'){
+    const opts=el('<div class="opts" role="group" aria-label="Варіанти відповіді"></div>');
+    st.options.forEach((o,i)=>{ const b=el(`<button type="button" class="opt" aria-pressed="${done&&o.ok?'true':'false'}">${esc(o.t)}</button>`);
+      b.addEventListener('click',()=>{ if(S.done[st.id]) return; b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true'); });
+      opts.appendChild(b); });
+    const whyHtml=()=>`<div class="fb ok"><b>Правильно.</b><ul class="plain">${st.options.map(o=>`<li><b>${o.ok?'✓':'✗'}</b> ${esc(o.t)}: ${esc(o.why)}</li>`).join('')}</ul></div>`;
+    const row=el('<div class="row"><button class="btn pri" type="button">Перевірити</button></div>');
+    $('button',row).addEventListener('click',()=>{ if(S.done[st.id]) return;
+      const sel=[...opts.children].map(b=>b.getAttribute('aria-pressed')==='true');
+      if(!sel.some(Boolean)){ out.innerHTML='<div class="fb bad"><span>Познач хоча б один варіант.</span></div>'; return; }
+      if(st.options.every((o,i)=>!!o.ok===sel[i])){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=whyHtml(); solved(); }
+      else { miss(); out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>Правильних варіантів тут ${st.options.filter(o=>o.ok).length}. Перевір кожен окремо.</span></div>`+hintHtml(); } });
+    work.append(opts,row); if(done) out.innerHTML=whyHtml();
   }
   else if(st.kind==='predict'){
     const va=variantOf(st);

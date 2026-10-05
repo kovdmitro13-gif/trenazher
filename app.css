@@ -82,6 +82,8 @@ textarea.ed:focus-visible{outline-offset:-3px}
 .nav{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:16px;margin-top:4px}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{text-align:left;min-height:48px;padding:10px 14px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);cursor:pointer}
+.opt[aria-pressed=true]{border-color:var(--accent);background:var(--soft);font-weight:600}
+.said{padding:6px 12px 12px;font-size:18px;line-height:1.45}
 .opt.right{border-color:var(--ok);background:var(--ok-soft)}
 .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
 .field{display:flex;flex-direction:column;gap:5px}
