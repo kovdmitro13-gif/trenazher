@@ -31,8 +31,8 @@ const shM=cells=>({title:'Аркуш «Штуки»',cells,cols:'AB',rows:[3,4,5
 
 const LESSON={
   id:'xl10-posylannia-v1', klass:'10-М', subject:'Excel', plot:'Кав\'ярня «Перерва»',
-  classes:['10-М','10-Ф'], groups:['1','2'],
-  title:'Посилання в Excel і знак $', minutes:35, submitUrl:'',
+  classes:['10-М','10-Ф'],
+  title:'Посилання в Excel і знак $', minutes:35, submitUrl:'https://script.google.com/macros/s/AKfycbw7F0TWcmUAq3awyHMpRxZqGfgmc5uSc010xL_q2qdSVxOdtRWagi6mNRyWtGdS6Q/exec',
   intro:`<p>Кав'ярня «Перерва» почала продавати випічку. Ти рахуєш собівартість, ціни і прибуток формулами. Формулу вписуєш у першу клітинку, а тренажер копіює її на решту, як автозаповнення в Excel.</p>
 <p>Тут 27 кроків і 20 вправ, часу треба приблизно 35 хвилин. Працює з телефона, Excel не потрібен.</p>`,
   sections:['Відносні посилання','Посилання попливло','Знак $ і F4','ROUND і середнє','Мішані посилання','Знайди помилку','Середнє чи медіана'],

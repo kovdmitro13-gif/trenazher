@@ -1,5 +1,5 @@
 // Прогін усіх кроків теми на ширині телефона (світла й темна тема). Потрібні playwright і локальна копія skulpt (npm i skulpt@1.2.0).
-const {chromium}=require('/opt/npm-tools/node_modules/playwright'); const fs=require('fs'); const path=require('path');
+const {chromium}=(()=>{try{return require('/opt/npm-tools/node_modules/playwright');}catch(e){return require('playwright');}})(); const fs=require('fs'); const path=require('path');
 const SOL={ s5:`tickets = int(input("Скільки квитків? "))\nprice = 180\nprint("До сплати:", tickets * price, "грн")`,
  s10:`price = float(input("Ціна: ").replace(",", "."))\ntotal = price * 2\nprint("Два квитки:", total, "грн")`,
  s13:`m = int(input("Хвилин: "))\nprint(m // 60, "год", m % 60, "хв")`,
@@ -22,7 +22,8 @@ const BAD={ s13:`print("2 год 28 хв")`, s16:`n, p = input().split()\nprint(
   const overflow=async tag=>{ const o=await p.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth); if(o>0) log.push(`OVERFLOW ${tag}: ${o}px`); };
   await shot('00-start'); await p.fill('#who','Тест'); await p.click('text=Почати'); 
   if(!(await p.isVisible('#whoErr'))) log.push('name validation missing');
-  await p.fill('#who','Тестовий Учень'); await p.click('text=Почати'); if(await p.isVisible('#who')){} else log.push('started without group'); await p.selectOption('#gr','2'); await p.click('text=Почати');
+  await p.fill('#who','Тестовий Учень'); await p.selectOption('#kl','10-Ф'); await p.click('text=Почати'); if(!(await p.isVisible('#whoErr'))||!(await p.isVisible('#who'))) log.push('started without group');
+  await p.selectOption('#kl','10-І'); if((await p.inputValue('#gr'))!=='2') log.push('10-І group not preselected'); await p.click('text=Почати');
   const steps=await p.evaluate(()=>LESSON.steps.map(s=>({id:s.id,kind:s.kind})));
   for(const [i,s] of steps.entries()){
     await overflow(s.id);

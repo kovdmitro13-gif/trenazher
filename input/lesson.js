@@ -4,9 +4,9 @@ const more=(...pairs)=>'<p class="more">Докладніше: '+pairs.map(([t,d,
 
 const LESSON={
   id:'py10i-input-types-v1', klass:'10-І', subject:'Python',
-  classes:['10-І','10-М','10-Ф','11-М','11-Ф'], groups:['1','2'],
+  classes:['10-І','10-М','10-Ф','11-М','11-Ф'],
   title:'input() і типи даних', plot:'Похід у кіно', minutes:30,
-  submitUrl:'',   // адреса приймача балів (Google Apps Script); порожньо = пробна версія
+  submitUrl:'https://script.google.com/macros/s/AKfycbw7F0TWcmUAq3awyHMpRxZqGfgmc5uSc010xL_q2qdSVxOdtRWagi6mNRyWtGdS6Q/exec',   // адреса приймача балів (Google Apps Script); порожньо = пробна версія
   sections:['input() і рядки','int() і float()','Помилки типів','Три ділення','split()'],
   steps:[
   {id:'s1',sec:0,kind:'read',title:'input() завжди повертає рядок',

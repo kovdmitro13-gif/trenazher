@@ -4,7 +4,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const el=(html)=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild;};
 const isEx=s=>s.kind!=='read';
 const KEY='trn:'+LESSON.id;
-let S={name:'',klass:'',group:'',i:-1,done:{},tries:{},seen:{},drafts:{},sent:false};
+let S={name:'',klass:'',group:'',i:-1,done:{},tries:{},seen:{},drafts:{},sent:false,code:'',codeFor:'',startTs:'',startSent:false};
 try{const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
 
@@ -112,11 +112,22 @@ function failBox(f,code){
     ${first?'':'<span>Перевір, чи програма працює для будь-яких даних, а не лише для прикладу.</span>'}</div>`;
 }
 
+/* ---- код старту й надсилання вчителю ---- */
+// Код прив'язує учня, клас, групу й тему: старт і всі результати йдуть з одним кодом (рішення вчителя 11.10.2026).
+function newCode(){ const who=[S.name,S.klass,S.group].join('|'); if(S.code&&S.codeFor===who) return;
+  const b=new Uint8Array(16); crypto.getRandomValues(b); S.code=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  S.codeFor=who; S.startTs=new Date().toISOString(); S.startSent=false; save(); }
+// Приймач (Apps Script) віддає JSON {ok, error?}; сторінка його читає (CORS перевірено 11.10.2026), тож «надіслано» — лише за ok.
+const post=data=>fetch(LESSON.submitUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data)}).then(r=>r.json());
+function sendStart(){ if(!LESSON.submitUrl||S.startSent) return Promise.resolve();
+  return post({type:'start',lesson:LESSON.id,klass:S.klass,group:S.group,name:S.name,code:S.code,ts:S.startTs}).then(r=>{ if(r.ok){ S.startSent=true; save(); } }); }
+
 /* ---- екрани ---- */
 const app=$('#app');
 const total=LESSON.steps.filter(isEx).length;
 const passed=()=>LESSON.steps.filter(s=>isEx(s)&&S.done[s.id]).length;
-const grade=()=>Math.max(1,Math.round(12*passed()/total));
+const EX=LESSON.steps.filter(isEx).map(s=>s.id);
+const grade=()=>otsinka(EX,Object.keys(S.done),S.tries);
 
 function drawTop(){
   const top=$('#top'); top.hidden=S.i<0;
@@ -155,13 +166,18 @@ function renderStart(){
       <input type="text" id="who" autocomplete="name" value="${esc(S.name)}" placeholder="Наприклад: Шевченко Тарас">
       <div class="pair">
         <div><label for="kl">Клас</label><select id="kl">${LESSON.classes.map(c=>`<option ${c===(S.klass||LESSON.klass)?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
-        <div><label for="gr">Група</label><select id="gr"><option value="">обери</option>${LESSON.groups.map(g=>`<option ${g===S.group?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
+        <div><label for="gr">Група</label><select id="gr"></select></div>
       </div>
       <div class="fb bad" id="whoErr" hidden>Впиши прізвище та ім'я і обери групу, щоб учитель бачив, чий це результат.</div>
       <div class="row" style="margin-top:8px"><button class="btn pri" type="submit">Почати</button></div></form>
   </section>`);
+  // групи — лише ті, що є в журналі (KLASY зі spilne.js); одна група підставляється сама
+  const groups=cur=>{ const gs=KLASY[$('#kl',v).value]||[];
+    $('#gr',v).innerHTML=(gs.length>1?'<option value="">обери</option>':'')+gs.map(g=>`<option ${g===cur?'selected':''}>${esc(g)}</option>`).join(''); };
+  $('#kl',v).addEventListener('change',()=>groups('')); groups(S.group);
   $('#startForm',v).addEventListener('submit',e=>{ e.preventDefault(); const n=$('#who',v).value.trim().replace(/\s+/g,' ');
-    const g=$('#gr',v).value; if(n.split(' ').length<2||!g){ $('#whoErr',v).hidden=false; return; } S.name=n; S.klass=$('#kl',v).value; S.group=g; go(0); });
+    const g=$('#gr',v).value; if(n.split(' ').length<2||!g){ $('#whoErr',v).hidden=false; return; } S.name=n; S.klass=$('#kl',v).value; S.group=g;
+    newCode(); sendStart(); go(0); });
   app.appendChild(v);
 }
 
@@ -211,7 +227,7 @@ function renderStep(st){
   const solved=()=>{ S.done[st.id]=true; save(); drawTop();
     const k=$('.kind',v); k.classList.add('ok'); k.textContent=KIND[st.kind]+' · зараховано';
     const n=$('#next',v); n.className='btn pri'; n.textContent=S.i===LESSON.steps.length-1?'До підсумку':'Далі'; };
-  const miss=()=>{ S.tries[st.id]=(S.tries[st.id]||0)+1; save(); };
+  const miss=()=>{ if(S.done[st.id]) return; S.tries[st.id]=(S.tries[st.id]||0)+1; save(); };
   const hintHtml=()=> (st.hint && (S.tries[st.id]||0)>=2 && !S.done[st.id])? `<div class="fb hint"><b>Підказка</b><span>${esc(st.hint)}</span></div>`:'';
   const okHtml=()=>`<div class="fb ok"><b>Правильно.</b><span>${st.explain||''}</span></div>`;
 
@@ -357,14 +373,15 @@ function renderEnd(){
   $('#reset',v).addEventListener('click',()=>{ const b=$('#resetBox',v);
     b.innerHTML='<div class="fb bad"><span>Увесь прогрес у цій темі буде стерто.</span><div class="row"><button class="btn" type="button" id="yes">Стерти і почати спочатку</button><button class="btn quiet" type="button" id="no">Залишити</button></div></div>';
     $('#no',b).addEventListener('click',()=>b.innerHTML='');
-    $('#yes',b).addEventListener('click',()=>{ S={name:S.name,klass:S.klass,group:S.group,i:-1,done:{},tries:{},seen:{},drafts:{},sent:false}; save(); render(); }); });
+    $('#yes',b).addEventListener('click',()=>{ S={name:S.name,klass:S.klass,group:S.group,i:-1,done:{},tries:{},seen:{},drafts:{},sent:false,code:S.code,codeFor:S.codeFor,startTs:S.startTs,startSent:S.startSent}; save(); render(); }); });
   const sb=$('#sendBox',v);
   if(!LESSON.submitUrl){ sb.innerHTML='<div class="fb hint"><b>Пробна версія</b><span>Результат учителю не надсилається. Покажи цей екран або зроби знімок.</span></div>'; }
   else {
     const send=()=>{ sb.innerHTML='<div class="fb hint"><span>Надсилаю результат учителю…</span></div>';
-      const body=JSON.stringify({lesson:LESSON.id,klass:S.klass,group:S.group,name:S.name,passed:passed(),total,grade:grade(),tries:S.tries,done:Object.keys(S.done),ts:now.toISOString()});
-      fetch(LESSON.submitUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body})
-       .then(()=>{ S.sent=passed(); save(); sb.innerHTML='<div class="fb ok"><b>Результат надіслано учителю.</b><span>Якщо доробиш вправи, відкрий підсумок ще раз: надішлеться оновлений.</span></div>'; })
+      newCode();
+      sendStart().then(()=>post({type:'result',lesson:LESSON.id,klass:S.klass,group:S.group,name:S.name,code:S.code,passed:passed(),total,grade:grade(),tries:S.tries,done:Object.keys(S.done),ts:now.toISOString()}))
+       .then(r=>{ if(!r.ok){ sb.innerHTML=`<div class="fb bad"><b>Учитель не отримав результат.</b><span>Причина: ${esc(r.error||'невідома')}. Покажи цей екран учителю.</span></div>`; return; }
+         S.sent=passed(); save(); sb.innerHTML='<div class="fb ok"><b>Учитель отримав результат.</b><span>Якщо доробиш вправи, відкрий підсумок ще раз: надішлеться оновлений.</span></div>'; })
        .catch(()=>{ sb.innerHTML='<div class="fb bad"><b>Не вдалося надіслати.</b><span>Перевір інтернет і натисни ще раз.</span><div class="row"><button class="btn" type="button" id="again">Надіслати ще раз</button></div></div>'; $('#again',sb).addEventListener('click',send); }); };
     send();
   }
