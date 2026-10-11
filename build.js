@@ -13,7 +13,8 @@ const head=(t,extra)=>`<!doctype html>\n<html lang="uk"><head><meta charset="utf
 // klass — підпис для головної; класи теми для сторінки вчителя беруться з нього: через «, », лише ті, що є в KLASY.
 const LESSONS=[{dir:'input',file:'lesson-input.js',title:'input() і типи даних',klass:'10-І, Python',python:true},
   {dir:'chyslivnyk',file:'lesson-chyslivnyk.js',title:'Числівник: спіймай помилку ШІ',klass:'11-М, 11-Ф'},
-  {dir:'excel',file:'lesson-excel.js',title:'Посилання в Excel і знак $',klass:'10-Ф, 10-М'}];
+  {dir:'excel',file:'lesson-excel.js',title:'Посилання в Excel і знак $',klass:'10-Ф, 10-М'},
+  {dir:'brend',file:'lesson-brend.js',title:'Бренд «Випуск 2027»: мудборд',klass:'11-М, 11-Ф'}];
 for(const L of LESSONS){ L.lessons=PRYV.lessons[L.dir]; if(!L.lessons) throw new Error(`${L.dir}: немає уроків теми в приймач/уроки-тем.json`); }
 fs.writeFileSync('app.css',css); fs.writeFileSync('app.js',app); fs.writeFileSync('sheet.js',sheet); fs.writeFileSync('spilne.js',spilne); fs.writeFileSync('.nojekyll','');
 for(const L of LESSONS){ fs.mkdirSync(''+L.dir,{recursive:true});
@@ -38,15 +39,26 @@ fs.writeFileSync(P+'збирач/spilne.js',GEN+spilne);
 fs.writeFileSync(P+'збирач/teme.js',GEN+'const THEMES='+JSON.stringify(T,null,1)+';\nif(typeof module!==\'undefined\') module.exports={THEMES};\n');
 const e=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dm=d=>d.split('-').reverse().slice(0,2).join('.');
+// Сторінка вчителя — Google Документ (приватний, Диск kovdmitro13): веб-сторінки Apps Script із входом не відкриваються,
+// коли kovdmitro13 у браузері не основний акаунт (11.10.2026). Цей HTML агент завантажує в документ конектором Drive.
 const theme=t=>{ const gr=Object.keys(KLASY).filter(k=>t.dlia.includes(k)).flatMap(k=>KLASY[k].map(g=>`${k} гр.${g}`));
-  return `<div class="opt" style="display:block"><b>${e(t.title)}</b><br><span class="more">${t.total} вправ</span>
-  <ul class="plain">${gr.map(g=>`<li>${e(g)}: ${t.lessons[g]?`урок ${t.lessons[g].n}, ${dm(t.lessons[g].date)}`:'урок не призначено'}</li>`).join('')}</ul>
-  <div class="row"><a class="btn" href="${SITE}${t.dir}/" target="_blank" rel="noopener">Тема</a><a class="btn quiet" href="${SITE}qr/${t.dir}.png" target="_blank" rel="noopener">QR-код</a></div></div>`; };
-const vchytel=`<!doctype html>\n<html lang="uk"><head><meta charset="utf-8"><base target="_top">\n<title>Тренажер — сторінка вчителя</title>\n${FONT}\n<style>\n${css}\n.plain{margin:6px 0 8px;padding-left:1.2em}.par{margin-top:18px}a.btn{text-decoration:none}</style>\n</head>\n<body>\n<div class="wrap"><main class="step" style="padding-top:28px">
-<span class="eyebrow">Ліцей № 13 · інформатика · лише для вчителя</span>\n<h1>Тренажер: теми за класами</h1>
-<div class="prose"><p>Результати учнів — у приватній таблиці: <a href="${TABLYTSIA}" target="_blank" rel="noopener">«Тренажер — результати»</a>. Усі теми однією сторінкою: <a href="${SITE}" target="_blank" rel="noopener">${SITE.replace('https://','')}</a> (<a href="${SITE}qr/vsi.png" target="_blank" rel="noopener">QR</a>).</p></div>
+  return `<h3>${e(t.title)}</h3>
+<p>${t.total} вправ · <a href="${SITE}${t.dir}/">${SITE.replace('https://','')}${t.dir}/</a></p>
+<ul>${gr.map(g=>`<li>${e(g)}: ${t.lessons[g]?`урок ${t.lessons[g].n}, ${dm(t.lessons[g].date)}`:'урок не призначено'}</li>`).join('')}</ul>
+<p><a href="${SITE}qr/${t.dir}.png"><img src="${SITE}qr/${t.dir}.png" width="240" height="267" alt="QR: ${e(t.title)}"></a><br><a href="${SITE}qr/${t.dir}.png">QR на весь екран</a></p>`; };
+const dokument=`<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><title>Тренажер — сторінка вчителя</title></head>
+<body>
+<h1>Тренажер: теми за класами</h1>
+<p>Лише для вчителя. Згенеровано з сайт/build.js — правки руками зітруться під час наступної публікації.</p>
+<p>Результати учнів: <a href="${TABLYTSIA}">«Тренажер — результати»</a>. Усі теми: <a href="${SITE}">${SITE.replace('https://','')}</a> (<a href="${SITE}qr/vsi.png">QR</a>). Щоб показати QR класу, відкрийте посилання «QR на весь екран» під картинкою.</p>
+<h2>Зміст</h2>
 ${PARALELI.map(p=>{ const ts=Object.values(T).filter(t=>t.dlia.some(k=>p.klasy.includes(k)));
-  return `<section class="par"><h2>${e(p.name)}: ${e(p.klasy.join(', '))}</h2>\n<div class="opts">${ts.length?ts.map(theme).join('\n'):'<p class="more">Тем поки немає.</p>'}</div></section>`; }).join('\n')}
-</main></div>\n</body></html>\n`;
-fs.writeFileSync(P+'сторінка-вчителя/vchytel.html',vchytel);
-for(const f of ['index.html','app.css','app.js','input/index.html','input/lesson.js',P+'збирач/teme.js',P+'сторінка-вчителя/vchytel.html']) console.log(f, fs.statSync(''+f).size);
+  return `<p><b>${e(p.name)}: ${e(p.klasy.join(', '))}</b></p>\n<ul>${ts.length?ts.map(t=>`<li><a href="${SITE}${t.dir}/">${e(t.title)}</a> — ${t.total} вправ · <a href="${SITE}qr/${t.dir}.png">QR</a></li>`).join(''):'<li>Тем поки немає.</li>'}</ul>`; }).join('\n')}
+${PARALELI.map(p=>{ const ts=Object.values(T).filter(t=>t.dlia.some(k=>p.klasy.includes(k)));
+  return `<h2>${e(p.name)}: ${e(p.klasy.join(', '))}</h2>
+${ts.length?ts.map(theme).join('\n'):'<p>Тем поки немає.</p>'}`; }).join('\n')}
+</body></html>
+`;
+fs.writeFileSync(P+'сторінка-вчителя.html',dokument);
+for(const f of ['index.html','app.css','app.js','input/index.html','input/lesson.js',P+'збирач/teme.js',P+'сторінка-вчителя.html']) console.log(f, fs.statSync(''+f).size);
