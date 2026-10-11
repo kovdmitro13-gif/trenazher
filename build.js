@@ -5,19 +5,16 @@ const fs=require('fs'), vm=require('vm'); const r=f=>fs.readFileSync('src/'+f,'u
 const css=r('app.css'), app=r('app.js'), sheet=r('sheet.js'), spilne=r('spilne.js'), body=r('body.html');
 const {KLASY,PARALELI}=require('./src/spilne.js');
 const SITE='https://kovdmitro13-gif.github.io/trenazher/';
-// Приватна таблиця результатів (Диск kovdmitro13 → «Інформатика»); посилання — лише на закритій сторінці вчителя.
-const TABLYTSIA='https://docs.google.com/spreadsheets/d/1kLYTI1X49LhgNpBgddkFEMDfVAd-gz7R-ZhfPEAU3tc/edit';
+// Приватне (посилання на таблицю результатів, уроки тем для груп) — у ../приймач/уроки-тем.json: сайт/ публікується весь.
+const PRYV=JSON.parse(fs.readFileSync('../приймач/уроки-тем.json','utf8')), TABLYTSIA=PRYV.tablytsia;
 const FONT='<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@600&display=swap">';
 const SK='<script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>\n<script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>';
 const head=(t,extra)=>`<!doctype html>\n<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n<title>${t}</title>\n${FONT}\n${extra}\n</head>`;
-// klass — підпис для головної; класи теми для сторінки вчителя беруться з нього (лише ті, що є в KLASY).
-// lessons — урок теми для кожної групи журналу: туди йде оцінка, якщо учень проходив тему не в день уроку (рішення вчителя 11.10.2026).
-const LESSONS=[{dir:'input',file:'lesson-input.js',title:'input() і типи даних',klass:'10-І, Python',python:true,
-    lessons:{'10-І гр.2':{n:13,date:'2026-09-28'}}},
-  {dir:'chyslivnyk',file:'lesson-chyslivnyk.js',title:'Числівник: спіймай помилку ШІ',klass:'11-М, 11-Ф',
-    lessons:{}},  // урок не проводився (вчитель, 11.10.2026)
-  {dir:'excel',file:'lesson-excel.js',title:'Посилання в Excel і знак $',klass:'10-Ф, 10-М',
-    lessons:{'10-Ф гр.1':{n:9,date:'2026-10-05'},'10-Ф гр.2':{n:9,date:'2026-10-05'},'10-М гр.1':{n:9,date:'2026-10-06'}}}];
+// klass — підпис для головної; класи теми для сторінки вчителя беруться з нього: через «, », лише ті, що є в KLASY.
+const LESSONS=[{dir:'input',file:'lesson-input.js',title:'input() і типи даних',klass:'10-І, Python',python:true},
+  {dir:'chyslivnyk',file:'lesson-chyslivnyk.js',title:'Числівник: спіймай помилку ШІ',klass:'11-М, 11-Ф'},
+  {dir:'excel',file:'lesson-excel.js',title:'Посилання в Excel і знак $',klass:'10-Ф, 10-М'}];
+for(const L of LESSONS){ L.lessons=PRYV.lessons[L.dir]; if(!L.lessons) throw new Error(`${L.dir}: немає уроків теми в приймач/уроки-тем.json`); }
 fs.writeFileSync('app.css',css); fs.writeFileSync('app.js',app); fs.writeFileSync('sheet.js',sheet); fs.writeFileSync('spilne.js',spilne); fs.writeFileSync('.nojekyll','');
 for(const L of LESSONS){ fs.mkdirSync(''+L.dir,{recursive:true});
   fs.writeFileSync(`${L.dir}/lesson.js`,r(L.file));

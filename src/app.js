@@ -177,7 +177,7 @@ function renderStart(){
   $('#kl',v).addEventListener('change',()=>groups('')); groups(S.group);
   $('#startForm',v).addEventListener('submit',e=>{ e.preventDefault(); const n=$('#who',v).value.trim().replace(/\s+/g,' ');
     const g=$('#gr',v).value; if(n.split(' ').length<2||!g){ $('#whoErr',v).hidden=false; return; } S.name=n; S.klass=$('#kl',v).value; S.group=g;
-    newCode(); sendStart(); go(0); });
+    newCode(); sendStart().catch(()=>{}); go(0); });
   app.appendChild(v);
 }
 
@@ -371,19 +371,21 @@ function renderEnd(){
   </section>`);
   $('#back',v).addEventListener('click',()=>go(LESSON.steps.length-1));
   $('#reset',v).addEventListener('click',()=>{ const b=$('#resetBox',v);
-    b.innerHTML='<div class="fb bad"><span>Увесь прогрес у цій темі буде стерто.</span><div class="row"><button class="btn" type="button" id="yes">Стерти і почати спочатку</button><button class="btn quiet" type="button" id="no">Залишити</button></div></div>';
+    b.innerHTML='<div class="fb bad"><span>Зараховані вправи буде стерто. Спроби залишаються й рахуються в оцінці.</span><div class="row"><button class="btn" type="button" id="yes">Стерти і почати спочатку</button><button class="btn quiet" type="button" id="no">Залишити</button></div></div>';
     $('#no',b).addEventListener('click',()=>b.innerHTML='');
-    $('#yes',b).addEventListener('click',()=>{ S={name:S.name,klass:S.klass,group:S.group,i:-1,done:{},tries:{},seen:{},drafts:{},sent:false,code:S.code,codeFor:S.codeFor,startTs:S.startTs,startSent:S.startSent}; save(); render(); }); });
+    $('#yes',b).addEventListener('click',()=>{ S={name:S.name,klass:S.klass,group:S.group,i:-1,done:{},tries:S.tries,seen:{},drafts:{},sent:false,code:S.code,codeFor:S.codeFor,startTs:S.startTs,startSent:S.startSent}; save(); render(); }); });
   const sb=$('#sendBox',v);
   if(!LESSON.submitUrl){ sb.innerHTML='<div class="fb hint"><b>Пробна версія</b><span>Результат учителю не надсилається. Покажи цей екран або зроби знімок.</span></div>'; }
   else {
+    newCode();  // прогрес без коду (до 11.10.2026) отримує код тут; перед результатом піде старт
+    const sig=JSON.stringify([S.code,Object.keys(S.done).sort(),S.tries]);
+    const okBox='<div class="fb ok"><b>Учитель отримав результат.</b><span>Якщо доробиш вправи, відкрий підсумок ще раз: надішлеться оновлений.</span></div>';
     const send=()=>{ sb.innerHTML='<div class="fb hint"><span>Надсилаю результат учителю…</span></div>';
-      newCode();
       sendStart().then(()=>post({type:'result',lesson:LESSON.id,klass:S.klass,group:S.group,name:S.name,code:S.code,passed:passed(),total,grade:grade(),tries:S.tries,done:Object.keys(S.done),ts:now.toISOString()}))
-       .then(r=>{ if(!r.ok){ sb.innerHTML=`<div class="fb bad"><b>Учитель не отримав результат.</b><span>Причина: ${esc(r.error||'невідома')}. Покажи цей екран учителю.</span></div>`; return; }
-         S.sent=passed(); save(); sb.innerHTML='<div class="fb ok"><b>Учитель отримав результат.</b><span>Якщо доробиш вправи, відкрий підсумок ще раз: надішлеться оновлений.</span></div>'; })
+       .then(r=>{ if(!r.ok){ sb.innerHTML=`<div class="fb bad"><b>Учитель не отримав результат.</b><span>Покажи цей екран учителю. Причина для вчителя: ${esc(r.error||'невідома')}.</span></div>`; return; }
+         S.sent=sig; save(); sb.innerHTML=okBox; })
        .catch(()=>{ sb.innerHTML='<div class="fb bad"><b>Не вдалося надіслати.</b><span>Перевір інтернет і натисни ще раз.</span><div class="row"><button class="btn" type="button" id="again">Надіслати ще раз</button></div></div>'; $('#again',sb).addEventListener('click',send); }); };
-    send();
+    if(S.sent===sig) sb.innerHTML=okBox; else send();
   }
   app.appendChild(v);
 }

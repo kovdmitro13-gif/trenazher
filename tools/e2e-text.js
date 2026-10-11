@@ -49,6 +49,11 @@ const {otsinka}=require('../src/spilne.js'); const SUBMIT='https://pryimach.test
     const ex=await p.evaluate(()=>LESSON.steps.filter(s=>s.kind!=='read').map(s=>s.id));
     const g=otsinka(ex,res.done,res.tries); if(g!==res.grade) log.push(`grade ${res.grade} ≠ otsinka ${g}`);
     log.push(`${scheme} sent: start+${sent.filter(x=>x.type==='result').length} result, grade ${res.grade}, tries>1: ${Object.values(res.tries).filter(n=>n>1).length}`); }
+  const nRes=sent.length; await p.reload(); await p.waitForTimeout(300);
+  if(sent.length!==nRes) log.push('same result re-sent after reload');
+  await p.click('#reset'); await p.click('#yes'); const tr=await p.evaluate(()=>Object.keys(S.tries).length+'/'+Object.keys(S.done).length);
+  if(!/^[1-9]\d*\/0$/.test(tr)) log.push('reset must keep tries and clear done: '+tr);
+  await p.click('text=Почати'); await p.evaluate(()=>go(LESSON.steps.length)); await p.waitForTimeout(300);
   if(!/Учитель отримав/.test(await p.innerText('#sendBox'))) log.push('sendBox: '+(await p.innerText('#sendBox'))); log.push(scheme+' end: '+(await p.innerText('.eyebrow'))+' | '+(await p.innerText('.score')).replace(/\n/g,' '));
   await ctx.close(); }
  await b.close(); console.log(log.join('\n'));
