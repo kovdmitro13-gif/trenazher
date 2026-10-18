@@ -14,10 +14,12 @@ const head=(t,extra)=>`<!doctype html>\n<html lang="uk"><head><meta charset="utf
 const LESSONS=[{dir:'input',file:'lesson-input.js',title:'input() і типи даних',klass:'10-І, Python',python:true},
   {dir:'chyslivnyk',file:'lesson-chyslivnyk.js',title:'Числівник: спіймай помилку ШІ',klass:'11-М, 11-Ф'},
   {dir:'excel',file:'lesson-excel.js',title:'Посилання в Excel і знак $',klass:'10-Ф, 10-М'},
-  {dir:'brend',file:'lesson-brend.js',title:'Бренд «Випуск 2027»: мудборд',klass:'11-М, 11-Ф'},
+  {dir:'brend',file:'lesson-brend.js',title:'Бренд «Випуск 2027»: мудборд',klass:'11-Ф'},
+  {dir:'brend-11m',file:'lesson-brend-11m.js',title:'Бренд «Випуск 2027»: мудборд, колір і шрифти',klass:'11-М'},
   {dir:'brend-kolir',file:'lesson-brend-kolir.js',title:'Бренд «Випуск 2027»: колір і шрифти',klass:'11-Ф'},
+  {dir:'pr4',file:'lesson-pr4.js',title:'Практична № 4: підсумок лінійних алгоритмів',klass:'10-І, Python',python:true},
   {dir:'if',file:'lesson-if.js',title:'Розгалуження: if і else',klass:'10-І, Python',python:true},
-  {dir:'biznes',file:'lesson-biznes.js',title:'Свій бізнес: текстові функції, логотип, ABS',klass:'10-Ф, 10-М'}];
+  {dir:'biznes',file:'lesson-biznes.js',title:'Свій бізнес: прайс, логотип, ціни й продажі',klass:'10-Ф, 10-М'}];
 for(const L of LESSONS){ L.lessons=PRYV.lessons[L.dir]; if(!L.lessons) throw new Error(`${L.dir}: немає уроків теми в приймач/уроки-тем.json`); }
 fs.writeFileSync('app.css',css); fs.writeFileSync('app.js',app); fs.writeFileSync('sheet.js',sheet); fs.writeFileSync('spilne.js',spilne); fs.writeFileSync('.nojekyll','');
 for(const L of LESSONS){ fs.mkdirSync(''+L.dir,{recursive:true});
