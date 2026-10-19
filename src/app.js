@@ -200,14 +200,14 @@ function sheetBox(spec,cells,hl){
   btn.addEventListener('click',()=>{ showF=!showF; draw(); }); draw();
   return {box,update:(c,h2)=>{ cur=c; if(h2) curHl=h2; draw(); }};
 }
-function keyRow(input,keys){
-  const row=el(`<div class="keys" aria-label="Символи для вставки">${keys.map(k=>`<button type="button" data-ins="${esc(k)}" tabindex="-1">${esc(k)}</button>`).join('')}</div>`);
+function keyRow(input,keys,cls){
+  const row=el(`<div class="keys${cls?' '+cls:''}" aria-label="Символи для вставки">${keys.map(k=>`<button type="button" data-ins="${esc(k)}" tabindex="-1">${esc(k)}</button>`).join('')}</div>`);
   row.addEventListener('pointerdown',e=>{ const b=e.target.closest('button'); if(!b) return; e.preventDefault(); input.focus();
     const a=input.selectionStart??input.value.length, z=input.selectionEnd??a; input.value=input.value.slice(0,a)+b.dataset.ins+input.value.slice(z); input.selectionStart=input.selectionEnd=a+b.dataset.ins.length; input.dispatchEvent(new Event('input')); });
   return row;
 }
-const FKEYS=['=','$','(',')','*','/','+','-',';',':'];
-const FMSG={CYR:'У формулі є українські літери. Перемкни клавіатуру на англійську: адреси клітинок і назви функцій пишуть латинськими літерами.',NOEQ:'Формула починається зі знака =.',SEP:'У нашому Excel аргументи функції розділяє крапка з комою, а не кома: наприклад, ROUND(E6;0).',SYN:'Excel не зміг би прочитати таку формулу. Перевір дужки, знаки й адреси клітинок.',ARGS:'У функції не та кількість аргументів.',FN:'Такої функції цей тренажер не знає. Тут достатньо ROUND, SUM, AVERAGE, MEDIAN, MIN, MAX.',CIRC:'Формула посилається сама на себе.',REF:'Після копіювання формула вийшла за межі аркуша.'};
+const FKEYS=['=','$','(',')','*','/','+','-',';',':','"','&'];
+const FMSG={CYR:'У формулі є українські літери поза лапками. Адреси клітинок і назви функцій пишуть латинськими літерами — перемкни клавіатуру на англійську. А текст у формулі беруть у лапки: "підтверджено".',NOEQ:'Формула починається зі знака =.',SEP:'У нашому Excel аргументи функції розділяє крапка з комою, а не кома: наприклад, ROUND(E6;0).',SYN:'Excel не зміг би прочитати таку формулу. Перевір дужки, лапки, знаки й адреси клітинок.',ARGS:'У функції не та кількість аргументів.',FN:'Такої функції цей тренажер не знає. Тут достатньо ROUND, SUM, AVERAGE, MEDIAN, MIN, MAX, ABS, COUNTIF, LEFT, UPPER, LEN.',CIRC:'Формула посилається сама на себе.',REF:'Після копіювання формула вийшла за межі аркуша.'};
 function renderStep(st){
   S.seen[st.id]=true; save();
   app.innerHTML='';
@@ -236,13 +236,13 @@ function renderStep(st){
   if(st.kind==='formula'){
     const fill=st.fill||st.target, cellsOf=SHEET.rangeCells(fill), many=cellsOf.length>1;
     const apply=(f,over)=>{ const c=SHEET.fillFormula(Object.assign({},st.sheet.cells,over||{}),st.target,fill,f); const get=SHEET.evaluator(c); return {c,vals:cellsOf.map(a=>get(a))}; };
-    const same=(a,b)=>typeof a==='number'&&typeof b==='number'&&Math.abs(a-b)<1e-6;
+    const same=(a,b)=>(typeof a==='number'&&typeof b==='number'&&Math.abs(a-b)<1e-6)||(typeof a==='string'&&typeof b==='string'&&a===b);
     const ff=a=>(st.sheet.fmt||{})[a]||(st.sheet.fmt||{})[a.replace(/\d+/,'')];
     const saved=S.drafts[st.id+'-f']; const init=saved!==undefined?saved:(st.start||'');
     const sb=sheetBox(st.sheet, init&&SHEET.normF(init)[0]==='='?(()=>{ try{ SHEET.parse(init); return apply(init).c; }catch(e){ return st.sheet.cells; } })():st.sheet.cells, cellsOf);
     const f=el(`<div class="field"><label for="fx-${st.id}">Формула для клітинки ${esc(st.target)}${many?` (тренажер скопіює її на ${esc(fill)})`:''}</label>
       <input type="text" class="mono" id="fx-${st.id}" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(init||'=')}"></div>`);
-    const inp=$('input',f); f.appendChild(keyRow(inp,FKEYS));
+    const inp=$('input',f); f.appendChild(keyRow(inp,FKEYS,'fx'));
     inp.addEventListener('input',()=>{ S.drafts[st.id+'-f']=inp.value; save(); });
     const row=el(`<div class="row"><button class="btn" type="button" data-a="put">${many?'Вставити й скопіювати':'Вставити'}</button><button class="btn pri" type="button" data-a="chk">Перевірити</button>${st.start?'<button class="btn quiet" type="button" data-a="reset">Повернути початкову формулу</button>':''}</div>`);
     const parseOk=v=>{ try{ SHEET.parse(v); return null; }catch(e){ return FMSG[e.code]||FMSG.SYN; } };
@@ -255,7 +255,7 @@ function renderStep(st){
       const want=apply(st.answer); const k=got.vals.findIndex((x,i)=>!same(x,want.vals[i]));
       if(k>=0){ miss(); const ad=cellsOf[k], x=got.vals[k];
         const fnErr=x instanceof SHEET.FErr&&FMSG[x.code]&&!SHEET.ERRTXT[x.code];
-        const near=Object.keys(st.near||{}).find(q=>SHEET.normF(q)===v);
+        const near=Object.keys(st.near||{}).find(q=>SHEET.normF(q).toUpperCase()===v.toUpperCase());
         out.innerHTML=`<div class="fb bad"><b>Поки що ні.</b><span>${fnErr?esc(FMSG[x.code]):`У клітинці ${ad} вийшло ${esc(SHEET.fmt(x,ff(ad))||'порожньо')}, а має бути ${esc(SHEET.fmt(want.vals[k],ff(ad)))}.${many&&ad!==st.target?` Після копіювання там формула ${esc(got.c[ad])}.`:''}`}</span>${near?`<span>${esc(st.near[near])}</span>`:''}</div>`+hintHtml(); return; }
       const failAlt=(st.alts||[]).find(o=>{ const g=apply(v,o), w=apply(st.answer,o); return g.vals.some((x,i)=>!same(x,w.vals[i])); });
       if(failAlt){ miss(); out.innerHTML=`<div class="fb bad"><b>На цих числах збіглося, але формула ще не та.</b><span>${esc(st.altMsg||'Якщо змінити дані в таблиці, результат буде хибний. Формула має брати значення з клітинок, а не містити готові числа чи не той діапазон.')}</span></div>`+hintHtml(); return; }
@@ -291,7 +291,7 @@ function renderStep(st){
       if(st.answers.some(x=>N(x)===a)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
       else { miss(); const near=Object.keys(st.near||{}).find(k=>N(k)===a);
         out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(near?st.near[near].replace(/^Ні\.\s*/,''):(st.miss||LESSON.missText||'Не збігається. Перевір ще раз.'))}</span></div>`+hintHtml(); } });
-    if(st.norm==='f') $('input',f).after(keyRow($('input',f),FKEYS));
+    if(st.norm==='f') $('input',f).after(keyRow($('input',f),FKEYS,'fx'));
     work.appendChild(f); if(done) out.innerHTML=okHtml();
   }
   else if(st.kind==='multi'){
