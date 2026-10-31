@@ -17,6 +17,8 @@ const {otsinka}=require('../src/spilne.js'); const SUBMIT='https://pryimach.test
   const ov=async t=>{const o=await p.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth); if(o>0) log.push(`OVERFLOW ${t}: ${o}px`);};
   await shot('00'); await p.fill('#who','Тестовий Учень');
   if(!(await p.inputValue('#gr'))) log.push('single group not preselected: '+(await p.inputValue('#kl')));
+  // 31.10.2026: група вже не обирається сама, якщо в класі кілька груп (тест зависав на «Почати») — обираємо явно
+  await p.selectOption('#kl',{index:1}).catch(()=>{}); await p.waitForTimeout(50); const og=await p.$$eval('#gr option',os=>os.map(o=>o.value)); if(og.length>1) await p.selectOption('#gr',og.find(v=>v)||og[1]);
   await p.click('text=Почати'); await p.waitForTimeout(100);
   const st0=sent.find(x=>x.type==='start'); if(!st0||!/^[0-9a-f]{32}$/.test(st0.code)||st0.name!=='Тестовий Учень') log.push('START not sent: '+JSON.stringify(st0));
   let retried=false;
