@@ -21,6 +21,9 @@ function hl(src){
   return out+esc(src.slice(last));
 }
 function hash(str){let h=2166136261;for(const ch of str){h^=ch.codePointAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+// 08.11.2026 (рев'ю): варіанти choice/multi перемішуються стабільно за ім'ям учня — правильний не завжди перший
+function order(st){ const idx=st.options.map((_,i)=>i); if(st.keepOrder) return idx; let h=hash(S.name.trim().toLowerCase()+'|'+st.id)||1;
+  for(let i=idx.length-1;i>0;i--){ h^=h<<13; h^=h>>>17; h^=h<<5; h>>>=0; const j=h%(i+1); [idx[i],idx[j]]=[idx[j],idx[i]]; } return idx; }
 const variantOf=st=>st.variants? st.variants[hash(S.name.trim().toLowerCase()+st.id)%st.variants.length] : st;
 const norm=s=>String(s).replace(/\r/g,'').split('\n').map(l=>l.trim().replace(/\s+/g,' ')).filter((l,i,a)=>l!==''||a.slice(i).some(x=>x!=='')).join('\n').trim();
 
@@ -207,7 +210,7 @@ function keyRow(input,keys,cls){
   return row;
 }
 const FKEYS=['=','$','(',')','*','/','+','-',';',':','"','&'];
-const FMSG={CYR:'У формулі є українські літери поза лапками. Адреси клітинок і назви функцій пишуть латинськими літерами — перемкни клавіатуру на англійську. А текст у формулі беруть у лапки: "підтверджено".',NOEQ:'Формула починається зі знака =.',SEP:'У нашому Excel аргументи функції розділяє крапка з комою, а не кома: наприклад, ROUND(E6;0).',SYN:'Excel не зміг би прочитати таку формулу. Перевір дужки, лапки, знаки й адреси клітинок.',ARGS:'У функції не та кількість аргументів.',FN:'Такої функції цей тренажер не знає. Тут достатньо ROUND, SUM, AVERAGE, MEDIAN, MIN, MAX, ABS, COUNTIF, LEFT, UPPER, LEN.',CIRC:'Формула посилається сама на себе.',REF:'Після копіювання формула вийшла за межі аркуша.'};
+const FMSG={CYR:'У формулі є українські літери поза лапками. Адреси клітинок і назви функцій пишуть латинськими літерами — перемкни клавіатуру на англійську. А текст у формулі беруть у лапки: "підтверджено".',NOEQ:'Формула починається зі знака =.',SEP:'У нашому Excel аргументи функції розділяє крапка з комою, а не кома: наприклад, ROUND(E6;0).',SYN:'Excel не зміг би прочитати таку формулу. Перевір дужки, лапки, знаки й адреси клітинок.',ARGS:'У функції не та кількість аргументів.',FN:'Такої функції цей тренажер не знає. Тут достатньо ROUND, ROUNDUP, SUM, SUMPRODUCT, AVERAGE, MEDIAN, MIN, MAX, ABS, COUNTIF, LEFT, UPPER, LEN.',CIRC:'Формула посилається сама на себе.',REF:'Після копіювання формула вийшла за межі аркуша.'};
 function renderStep(st){
   S.seen[st.id]=true; save();
   app.innerHTML='';
@@ -271,7 +274,7 @@ function renderStep(st){
   else if(st.kind==='choice'){
     if(st.code) work.appendChild(el(`<div class="box"><pre class="code">${hl(st.code)}</pre></div>`));
     const opts=el('<div class="opts" role="group" aria-label="Варіанти відповіді"></div>');
-    st.options.forEach(o=>{ const b=el(`<button type="button" class="opt">${esc(o.t)}</button>`);
+    order(st).map(k=>st.options[k]).forEach(o=>{ const b=el(`<button type="button" class="opt">${esc(o.t)}</button>`);
       if(done&&o.ok) b.classList.add('right');
       b.addEventListener('click',()=>{ if(S.done[st.id]) return;
         if(o.ok){ S.tries[st.id]=(S.tries[st.id]||0)+1; b.classList.add('right'); out.innerHTML=`<div class="fb ok"><b>Правильно.</b><span>${esc(o.why)}</span></div>`; solved(); }
@@ -285,7 +288,8 @@ function renderStep(st){
       <input type="text" ${st.norm==='f'?'class="mono"':''} id="ans-${st.id}" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" ${done?`value="${esc(st.answers[0])}"`:''}>
       <div class="row" style="margin-top:6px"><button class="btn pri" type="submit">Перевірити</button></div></form>`);
     f.addEventListener('submit',e=>{ e.preventDefault(); if(S.done[st.id]) return;
-      const N=st.norm==='f'?(x=>{ x=SHEET.normF(x).replace(/[.;,]+$/,''); return x&&x[0]!=='='?'='+x:x; }):normUk;
+      // 08.11.2026: 'code' — без пробілів, з регістром (код); 'exact' — з регістром, без лапок і крайніх пробілів
+      const N=st.norm==='f'?(x=>{ x=SHEET.normF(x).replace(/[.;,]+$/,''); return x&&x[0]!=='='?'='+x:x; }):st.norm==='code'?(x=>String(x).replace(/\s+/g,'')):st.norm==='exact'?(x=>String(x).trim().replace(/^["'«“„]+|["'»”]+$/g,'').trim()):normUk;
       const a=N($('input',f).value); if(!a||a==='=') return;
       if(st.norm==='f'&&/[А-ЯЁІЇЄҐ]/.test(a)){ out.innerHTML=`<div class="fb bad"><span>${esc(FMSG.CYR)}</span></div>`; return; }
       if(st.answers.some(x=>N(x)===a)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
@@ -295,16 +299,16 @@ function renderStep(st){
     work.appendChild(f); if(done) out.innerHTML=okHtml();
   }
   else if(st.kind==='multi'){
-    const opts=el('<div class="opts" role="group" aria-label="Варіанти відповіді"></div>');
-    st.options.forEach((o,i)=>{ const b=el(`<button type="button" class="opt" aria-pressed="${done&&o.ok?'true':'false'}">${esc(o.t)}</button>`);
+    const opts=el('<div class="opts" role="group" aria-label="Варіанти відповіді"></div>'); const O=order(st).map(k=>st.options[k]);
+    O.forEach((o,i)=>{ const b=el(`<button type="button" class="opt" aria-pressed="${done&&o.ok?'true':'false'}">${esc(o.t)}</button>`);
       b.addEventListener('click',()=>{ if(S.done[st.id]) return; b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true'); });
       opts.appendChild(b); });
-    const whyHtml=()=>`<div class="fb ok"><b>Правильно.</b><ul class="plain">${st.options.map(o=>`<li><b>${o.ok?'✓':'✗'}</b> ${esc(o.t)}: ${esc(o.why)}</li>`).join('')}</ul></div>`;
+    const whyHtml=()=>`<div class="fb ok"><b>Правильно.</b><ul class="plain">${O.map(o=>`<li><b>${o.ok?'✓':'✗'}</b> ${esc(o.t)}: ${esc(o.why)}</li>`).join('')}</ul></div>`;
     const row=el('<div class="row"><button class="btn pri" type="button">Перевірити</button></div>');
     $('button',row).addEventListener('click',()=>{ if(S.done[st.id]) return;
       const sel=[...opts.children].map(b=>b.getAttribute('aria-pressed')==='true');
       if(!sel.some(Boolean)){ out.innerHTML='<div class="fb bad"><span>Познач хоча б один варіант.</span></div>'; return; }
-      if(st.options.every((o,i)=>!!o.ok===sel[i])){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=whyHtml(); solved(); }
+      if(O.every((o,i)=>!!o.ok===sel[i])){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=whyHtml(); solved(); }
       else { miss(); out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>Правильних варіантів тут ${st.options.filter(o=>o.ok).length}. Перевір кожен окремо.</span></div>`+hintHtml(); } });
     work.append(opts,row); if(done) out.innerHTML=whyHtml();
   }

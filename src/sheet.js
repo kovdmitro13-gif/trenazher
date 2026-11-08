@@ -1,7 +1,8 @@
 /* ============ МІНІ-ТАБЛИЦЯ: обчислення формул ============ */
 /* Без DOM. Підтримує: числа (десяткова кома або крапка), посилання з $, діапазони, + - * / ( ) %,
-   функції ROUND, SUM, AVERAGE, MEDIAN, MIN, MAX, ABS, COUNTIF, LEFT, UPPER, LEN з роздільником аргументів «;»,
-   текст у лапках і склеювання знаком & (додано 19.10.2026 для теми «Свій бізнес: формули своїми руками»).
+   функції ROUND, ROUNDUP, SUM, SUMPRODUCT, AVERAGE, MEDIAN, MIN, MAX, ABS, COUNTIF, LEFT, UPPER, LEN з роздільником аргументів «;»,
+   текст у лапках і склеювання знаком & (додано 19.10.2026 для теми «Свій бізнес: формули своїми руками»);
+   ROUNDUP і SUMPRODUCT — 08.11.2026 для тем «Підбір параметра» і «Пошук розв’язання» (10-Ф, 10-М, уроки 17-18).
    Помилки як в українському Excel: #ЗНАЧЕННЯ!, #ДІЛЕННЯ/0!. */
 const SHEET=(()=>{
   const ERRTXT={V:'#ЗНАЧЕННЯ!',D:'#ДІЛЕННЯ/0!'};
@@ -109,6 +110,10 @@ const SHEET=(()=>{
         case 'fn': {
           const nums=()=>{ const out=[]; for(const a of n.args){ if(a.k==='range') out.push(...rangeVals(a.a,a.b)); else if(a.k==='ref'){ const v=cell(clean(a.v)); if(typeof v==='number') out.push(v); } else out.push(num(ev(a))); } return out; };
           if(n.name==='ROUND'){ if(n.args.length!==2) throw new FErr('ARGS','ROUND'); return round(num(ev(n.args[0])),num(ev(n.args[1]))); }
+          if(n.name==='ROUNDUP'){ if(n.args.length!==2) throw new FErr('ARGS','ROUNDUP'); const x=num(ev(n.args[0])), f=Math.pow(10,Math.trunc(num(ev(n.args[1])))); return Math.sign(x)*Math.ceil(Math.abs(x)*f-1e-9)/f; }
+          if(n.name==='SUMPRODUCT'){ if(!n.args.length||n.args.some(a=>a.k!=='range')) throw new FErr('ARGS','SUMPRODUCT');
+            const ms=n.args.map(a=>rangeAll(a.a,a.b).map(v=>typeof v==='number'?v:0)); if(ms.some(m=>m.length!==ms[0].length)) throw new FErr('V');
+            return ms[0].reduce((s,_,i)=>s+ms.reduce((p,m)=>p*m[i],1),0); }
           if(n.name==='ABS'){ if(n.args.length!==1) throw new FErr('ARGS','ABS'); return Math.abs(num(ev(n.args[0]))); }
           if(n.name==='UPPER'){ if(n.args.length!==1) throw new FErr('ARGS','UPPER'); return txt(ev(n.args[0])).toUpperCase(); }
           if(n.name==='LEN'){ if(n.args.length!==1) throw new FErr('ARGS','LEN'); return txt(ev(n.args[0])).length; }

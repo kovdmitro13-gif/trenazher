@@ -21,9 +21,9 @@ const dir=process.argv[2]; const SOL=process.argv[3]?JSON.parse(fs.readFileSync(
     await overflow(s.id);
     if(s.kind==='read'){ const btns=await p.$$('.work .btn'); for(const x of btns){ await x.click(); await p.waitForTimeout(400);} 
       const cons=await p.$$eval('.con',a=>a.map(c=>c.innerText)); if(cons.length) log.push(`${s.id} run: ${JSON.stringify(cons)}`); }
-    if(s.kind==='choice'){ const opts=await p.$$('.opt'); const okIdx=await p.evaluate(i=>LESSON.steps[i].options.findIndex(o=>o.ok),i);
+    if(s.kind==='choice'){ const opts=await p.$$('.opt'); const okIdx=await p.evaluate(i=>{const s=LESSON.steps[i]; return order(s).findIndex(k=>s.options[k].ok);},i);
       await opts[(okIdx+1)%opts.length].click(); if(!(await p.isVisible('.fb.bad'))) log.push(s.id+' wrong not flagged'); await opts[okIdx].click(); }
-    if(s.kind==='multi'){ const opts=await p.$$('.opt'); const oks=await p.evaluate(i=>LESSON.steps[i].options.map(o=>!!o.ok),i);
+    if(s.kind==='multi'){ const opts=await p.$$('.opt'); const oks=await p.evaluate(i=>{const s=LESSON.steps[i]; return order(s).map(k=>!!s.options[k].ok);},i);
       await opts[oks.indexOf(true)].click(); await p.click('button.pri:has-text("Перевірити")'); if(!(await p.isVisible('.fb.bad'))) log.push(s.id+' partial not flagged');
       for(const [k,o] of oks.entries()) if(o&&k!==oks.indexOf(true)) await opts[k].click(); await p.click('button.pri:has-text("Перевірити")'); }
     if(s.kind==='predict'){ const ans=await p.evaluate(i=>variantOf(LESSON.steps[i]).answer,i);

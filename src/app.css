@@ -127,3 +127,4 @@ textarea.ed:focus-visible{outline-offset:-3px}
 .stamp{font-size:14px;color:var(--muted)}
 ul.plain{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:4px}
 @media (prefers-reduced-motion:no-preference){ .seg{transition:background .2s} }
+.prose code{overflow-wrap:anywhere} /* 08.11.2026: довгий текст помилки не розширює сторінку на телефоні */

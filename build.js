@@ -24,7 +24,9 @@ const LESSONS=[{dir:'input',file:'lesson-input.js',title:'input() і типи д
   {dir:'brend-logo',file:'lesson-brend-logo.js',title:'Бренд «Випуск 2027»: логотип',klass:'11-Ф, 11-М'},
   {dir:'elif',file:'lesson-elif.js',title:'elif і вкладені розгалуження',klass:'10-І, Python',python:true},
   {dir:'match',file:'lesson-match.js',title:'Оператор вибору match',klass:'10-І, Python'},
-  {dir:'brend-bb',file:'lesson-brend-bb.js',title:'Бренд «Випуск 2027»: брендбук',klass:'11-Ф, 11-М'}];
+  {dir:'brend-bb',file:'lesson-brend-bb.js',title:'Бренд «Випуск 2027»: брендбук',klass:'11-Ф, 11-М'},
+  {dir:'pidbir',file:'lesson-pidbir.js',title:'Підбір параметра: рівняння і система',klass:'10-Ф, 10-М'},
+  {dir:'solver',file:'lesson-solver.js',title:'Пошук розв’язання: найбільший прибуток',klass:'10-Ф, 10-М'}];
 for(const L of LESSONS){ L.lessons=PRYV.lessons[L.dir]; if(!L.lessons) throw new Error(`${L.dir}: немає уроків теми в приймач/уроки-тем.json`); }
 fs.writeFileSync('app.css',css); fs.writeFileSync('app.js',app); fs.writeFileSync('sheet.js',sheet); fs.writeFileSync('spilne.js',spilne); fs.writeFileSync('.nojekyll','');
 for(const L of LESSONS){ fs.mkdirSync(''+L.dir,{recursive:true});

@@ -22,16 +22,16 @@ const {otsinka}=require('../src/spilne.js'); const SUBMIT='https://pryimach.test
   await p.click('text=Почати'); await p.waitForTimeout(100);
   const st0=sent.find(x=>x.type==='start'); if(!st0||!/^[0-9a-f]{32}$/.test(st0.code)||st0.name!=='Тестовий Учень') log.push('START not sent: '+JSON.stringify(st0));
   let retried=false;
-  const steps=await p.evaluate(()=>LESSON.steps.map(s=>({id:s.id,kind:s.kind,answers:s.answers,near:Object.keys(s.near||{}),ok:(s.options||[]).map(o=>!!o.ok)})));
+  const steps=await p.evaluate(()=>LESSON.steps.map(s=>({id:s.id,kind:s.kind,norm:s.norm,answers:s.answers,near:Object.keys(s.near||{}),ok:s.options?order(s).map(k=>!!s.options[k].ok):[]})));
   for(const [i,s] of steps.entries()){ await ov(s.id);
     if(s.kind==='choice'){ const o=await p.$$('.opt'); const k=s.ok.indexOf(true); await o[(k+1)%o.length].click(); if(!(await p.isVisible('.fb.bad'))) log.push(s.id+' wrong not flagged'); await o[k].click(); }
     if(s.kind==='multi'){ const o=await p.$$('.opt'); for(const x of o) await x.click(); await p.click('text=Перевірити'); if(s.ok.includes(false)&&!(await p.isVisible('.fb.bad'))) log.push(s.id+' all-selected passed');
       for(const [j,x] of o.entries()) if(!s.ok[j]) await x.click(); await p.click('text=Перевірити'); }
     if(s.kind==='text'){ for(const n of s.near){ await p.fill('.field input',n); await p.click('text=Перевірити'); const t=await p.innerText('.out'); if(/Перевір відмінок числівника/.test(t)||!/\S/.test(t)) log.push(s.id+' near not matched: '+n); if(await p.evaluate(id=>!!S.done[id],s.id)) log.push(s.id+' near ACCEPTED: '+n); }
-      const accepted=await p.evaluate(a=>a.map(x=>[x, x.toUpperCase()+'.', '  '+x.replace(/'/g,'’')+' ']).flat().filter(v=>!LESSON.steps.some(()=>false)).map(v=>normUk(v)),s.answers); 
-      const base=await p.evaluate(a=>a.map(x=>normUk(x)),s.answers); if(accepted.some(v=>!base.includes(v))) log.push(s.id+' variant normalisation fails');
+      if(s.norm!=='code'&&s.norm!=='exact'){ const accepted=await p.evaluate(a=>a.map(x=>[x, x.toUpperCase()+'.', '  '+x.replace(/'/g,'’')+' ']).flat().filter(v=>!LESSON.steps.some(()=>false)).map(v=>normUk(v)),s.answers); 
+      const base=await p.evaluate(a=>a.map(x=>normUk(x)),s.answers); if(accepted.some(v=>!base.includes(v))) log.push(s.id+' variant normalisation fails'); }
       if(scheme==='light'&&i<12) await shot('near-'+s.id);
-      await p.fill('.field input',' '+s.answers[0].replace(/'/g,'’').replace(/^./,c=>c.toUpperCase())+'. '); await p.click('text=Перевірити'); }
+      await p.fill('.field input',(s.norm==='code'||s.norm==='exact')?' '+s.answers[0]+' ':' '+s.answers[0].replace(/'/g,'’').replace(/^./,c=>c.toUpperCase())+'. '); await p.click('text=Перевірити'); }
     if(s.kind==='formula'){ const st=await p.evaluate(i=>{const x=LESSON.steps[i]; return {start:x.start||'',answer:x.answer,near:Object.keys(x.near||{}),fill:x.fill||x.target};},i);
       if(st.start){ await p.click('[data-a=chk]'); if(!(await p.isVisible('.fb.bad'))) log.push(s.id+' start formula passed'); if(scheme==='light') await shot('start-'+s.id); }
       for(const n of st.near){ await p.fill('.field input',n.toLowerCase()); await p.click('[data-a=chk]'); const t=await p.innerText('.out'); if(!/Поки що ні/.test(t)) log.push(s.id+' near not rejected: '+n); if(t.split('\n').filter(x=>x.trim()).length<3) log.push(s.id+' near message missing: '+n); }
