@@ -8,7 +8,7 @@ let S={name:'',klass:'',group:'',i:-1,done:{},tries:{},seen:{},drafts:{},sent:fa
 try{const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
 
-const KW=/^(?:and|or|not|if|else|elif|for|while|in|import|from|def|return|True|False|None|pass|break|continue)$/;
+const KW=/^(?:and|or|not|if|else|elif|for|while|in|import|from|def|return|True|False|None|pass|break|continue|match|case)$/;
 const BI=/^(?:print|input|int|float|str|type|len|round|bool|abs|min|max)$/;
 function hl(src){
   const re=/(#.*$)|(f?"(?:[^"\\\n]|\\.)*"|f?'(?:[^'\\\n]|\\.)*')|([A-Za-z_]\w*)/gm;
@@ -95,12 +95,13 @@ function editor(st,idx,run,editable){
 }
 
 /* ---- перевірка тестами ---- */
-async function check(code,tests){
+// exact (08.11.2026, рев'ю): увесь вивід має збігтися — інакше «окремі if» з кількома рядками проходили б
+async function check(code,tests,exact){
   for(let t=0;t<tests.length;t++){
     const r=await runPy(code,tests[t].in);
     const want=norm(tests[t].out).split('\n'), got=norm(r.printed).split('\n');
     const tail=got.slice(-want.length).join('\n');
-    if(r.error || tail!==want.join('\n')) return {ok:false,t,test:tests[t],res:r};
+    if(r.error || tail!==want.join('\n') || (exact && got.length!==want.length)) return {ok:false,t,test:tests[t],res:r};
   }
   return {ok:true};
 }
@@ -321,7 +322,7 @@ function renderStep(st){
     f.addEventListener('submit',e=>{ e.preventDefault(); if(S.done[st.id]) return;
       const a=$('input',f).value; if(!a.trim()) return;
       if(norm(a)===norm(va.answer)){ S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); }
-      else { miss(); out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>Пройди програму рядок за рядком і стеж за типом кожної змінної.</span></div>`+hintHtml(); } });
+      else { miss(); out.innerHTML=`<div class="fb bad"><b>Ні.</b><span>${esc(st.miss||'Пройди програму рядок за рядком і стеж за типом кожної змінної.')}</span></div>`+hintHtml(); } });
     work.appendChild(f); if(done) out.innerHTML=okHtml();
   }
   else if(st.kind==='gaps'){
@@ -338,7 +339,7 @@ function renderStep(st){
     row.addEventListener('click',async e=>{ const a=e.target.dataset.a; if(!a) return;
       if(gaps().some(g=>!g)){ out.innerHTML='<div class="fb bad"><span>Заповни всі пропуски.</span></div>'; return; }
       if(a==='run'){ showRun(con,await runPy(build(),linesOf($('textarea',box).value))); return; }
-      const r=await check(build(),st.tests);
+      const r=await check(build(),st.tests,st.exact);
       if(r.ok){ if(!S.done[st.id]) S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); } else { miss(); out.innerHTML=failBox(r)+hintHtml(); } });
     work.append(box,row); if(done) out.innerHTML=okHtml();
   }
@@ -349,7 +350,7 @@ function renderStep(st){
       if(a==='reset'){ ed.ta.value=st.code; ed.ta.dispatchEvent(new Event('input')); ed.con.hidden=true; return; }
       if(a==='run'){ await ed.runNow(); return; }
       if(!ed.code().trim()){ out.innerHTML='<div class="fb bad"><span>Спочатку напиши програму.</span></div>'; return; }
-      const r=await check(ed.code(),st.tests);
+      const r=await check(ed.code(),st.tests,st.exact);
       if(r.ok){ if(!S.done[st.id]) S.tries[st.id]=(S.tries[st.id]||0)+1; out.innerHTML=okHtml(); solved(); } else { miss(); out.innerHTML=failBox(r)+hintHtml(); } });
     work.append(ed.box,row); if(done) out.innerHTML=okHtml();
   }
