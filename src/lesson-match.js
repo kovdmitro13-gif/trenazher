@@ -43,7 +43,7 @@ const LESSON={
   title:'Оператор вибору match', plot:'Пульт і команди', minutes:25,
   submitUrl:'https://script.google.com/macros/s/AKfycbw7F0TWcmUAq3awyHMpRxZqGfgmc5uSc010xL_q2qdSVxOdtRWagi6mNRyWtGdS6Q/exec',
   missText:'Не збігається. Переглянь пояснення вище ще раз.',
-  intro:`<p>Це уроки 35-36 «match і практична № 6» — для тих, у кого урок пропав або хто хоче повторити.</p>
+  intro:`<p>Це тема до уроку 35 «match і case» — для тих, у кого урок пропав або хто хоче повторити. Тема до уроку 36 (практична № 6) — «Практикум № 6: elif чи match».</p>
 <p><b>Що проходимо на уроці</b> (з презентації):</p>
 <ul class="plain"><li>Учора — elif: умови згори вниз, виконується перша True.</li>
 <li>Урок 35: match — одна змінна, кілька можливих значень.</li>

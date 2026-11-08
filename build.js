@@ -24,6 +24,8 @@ const LESSONS=[{dir:'input',file:'lesson-input.js',title:'input() і типи д
   {dir:'brend-logo',file:'lesson-brend-logo.js',title:'Бренд «Випуск 2027»: логотип',klass:'11-Ф, 11-М'},
   {dir:'elif',file:'lesson-elif.js',title:'elif і вкладені розгалуження',klass:'10-І, Python',python:true},
   {dir:'match',file:'lesson-match.js',title:'Оператор вибору match',klass:'10-І, Python'},
+  {dir:'elif-pr',file:'lesson-elif-pr.js',title:'Практикум: elif, межі й вкладені if',klass:'10-І, Python',python:true},
+  {dir:'pr6',file:'lesson-pr6.js',title:'Практикум № 6: elif чи match',klass:'10-І, Python',python:true},
   {dir:'brend-bb',file:'lesson-brend-bb.js',title:'Бренд «Випуск 2027»: брендбук',klass:'11-Ф, 11-М'},
   {dir:'pidbir',file:'lesson-pidbir.js',title:'Підбір параметра: рівняння і система',klass:'10-Ф, 10-М'},
   {dir:'solver',file:'lesson-solver.js',title:'Пошук розв’язання: найбільший прибуток',klass:'10-Ф, 10-М'}];
