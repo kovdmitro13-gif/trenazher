@@ -28,7 +28,14 @@ const LESSONS=[{dir:'input',file:'lesson-input.js',title:'input() і типи д
   {dir:'pr6',file:'lesson-pr6.js',title:'Практикум № 6: elif чи match',klass:'10-І, Python',python:true},
   {dir:'brend-bb',file:'lesson-brend-bb.js',title:'Бренд «Випуск 2027»: брендбук',klass:'11-Ф, 11-М'},
   {dir:'pidbir',file:'lesson-pidbir.js',title:'Підбір параметра: рівняння і система',klass:'10-Ф, 10-М'},
-  {dir:'solver',file:'lesson-solver.js',title:'Пошук розв’язання: найбільший прибуток',klass:'10-Ф, 10-М'}];
+  {dir:'solver',file:'lesson-solver.js',title:'Пошук розв’язання: найбільший прибуток',klass:'10-Ф, 10-М'},
+  {dir:'match-rep',file:'lesson-match-rep.js',title:'match: повторення на нових задачах',klass:'10-І, Python'},
+  {dir:'match-pr',file:'lesson-match-pr.js',title:'match: знайди помилку, допиши, напиши сам',klass:'10-І, Python'},
+  {dir:'while',file:'lesson-while.js',title:'Цикл while',klass:'10-І, Python',python:true},
+  {dir:'while-pr',file:'lesson-while-pr.js',title:'while: знайди помилку, допиши, напиши сам',klass:'10-І, Python',python:true},
+  {dir:'kredyt',file:'lesson-kredyt.js',title:'Кредит чи накопичення: PMT, FV, NPER',klass:'10-Ф, 10-М'},
+  {dir:'prohnoz',file:'lesson-prohnoz.js',title:'Прогноз: лінія тренду, R² і FORECAST.LINEAR',klass:'10-Ф, 10-М'},
+  {dir:'kolazh',file:'lesson-kolazh.js',title:'Бренд «Випуск 2027»: колаж у Photopea',klass:'11-Ф, 11-М'}];
 for(const L of LESSONS){ L.lessons=PRYV.lessons[L.dir]; if(!L.lessons) throw new Error(`${L.dir}: немає уроків теми в приймач/уроки-тем.json`); }
 fs.writeFileSync('app.css',css); fs.writeFileSync('app.js',app); fs.writeFileSync('sheet.js',sheet); fs.writeFileSync('spilne.js',spilne); fs.writeFileSync('.nojekyll','');
 for(const L of LESSONS){ fs.mkdirSync(''+L.dir,{recursive:true});

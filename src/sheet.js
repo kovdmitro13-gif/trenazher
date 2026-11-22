@@ -3,6 +3,7 @@
    функції ROUND, ROUNDUP, SUM, SUMPRODUCT, AVERAGE, MEDIAN, MIN, MAX, ABS, COUNTIF, LEFT, UPPER, LEN з роздільником аргументів «;»,
    текст у лапках і склеювання знаком & (додано 19.10.2026 для теми «Свій бізнес: формули своїми руками»);
    ROUNDUP і SUMPRODUCT — 08.11.2026 для тем «Підбір параметра» і «Пошук розв’язання» (10-Ф, 10-М, уроки 17-18).
+   PMT, FV, NPER, FORECAST.LINEAR, RSQ — 22.11.2026 для тем «Кредит і накопичення» і «Прогноз продажів» (10-Ф, 10-М, уроки 21-22).
    Помилки як в українському Excel: #ЗНАЧЕННЯ!, #ДІЛЕННЯ/0!. */
 const SHEET=(()=>{
   const ERRTXT={V:'#ЗНАЧЕННЯ!',D:'#ДІЛЕННЯ/0!'};
@@ -121,6 +122,22 @@ const SHEET=(()=>{
           if(n.name==='COUNTIF'){ if(n.args.length!==2) throw new FErr('ARGS','COUNTIF'); const r=n.args[0];
             const vals=r.k==='range'?rangeAll(r.a,r.b):r.k==='ref'?[cell(clean(r.v))]:null; if(!vals) throw new FErr('V');
             const c=ev(n.args[1]); return vals.filter(v=>match(v,c===null?0:c)).length; }
+          // PMT, FV, NPER, FORECAST.LINEAR, RSQ — 22.11.2026 для тем «Кредит і накопичення» і «Прогноз продажів» (10-Ф, 10-М, уроки 21-22)
+          const fin=(name,lo,hi)=>{ if(n.args.length<lo||n.args.length>hi) throw new FErr('ARGS',name); return n.args.map(a=>num(ev(a))); };
+          if(n.name==='PMT'){ const [r,k,pv,fv=0,t=0]=fin('PMT',3,5); if(k===0) throw new FErr('V'); if(r===0) return -(pv+fv)/k;
+            const q=Math.pow(1+r,k); return -(r*(fv+pv*q))/((1+r*t)*(q-1)); }
+          if(n.name==='FV'){ const [r,k,pm,pv=0,t=0]=fin('FV',3,5); if(r===0) return -(pv+pm*k);
+            const q=Math.pow(1+r,k); return -(pv*q+pm*(1+r*t)*(q-1)/r); }
+          if(n.name==='NPER'){ const [r,pm,pv,fv=0,t=0]=fin('NPER',3,5); if(r===0){ if(pm===0) throw new FErr('V'); return -(pv+fv)/pm; }
+            const a1=pm*(1+r*t)-fv*r, b1=pm*(1+r*t)+pv*r; if(a1/b1<=0) throw new FErr('V'); return Math.log(a1/b1)/Math.log(1+r); }
+          if(n.name==='FORECAST.LINEAR'||n.name==='RSQ'){ const need=n.name==='RSQ'?2:3; if(n.args.length!==need) throw new FErr('ARGS',n.name);
+            const ra=n.args.slice(need-2); if(ra.some(a=>a.k!=='range')) throw new FErr('ARGS',n.name);
+            const ys=rangeAll(ra[0].a,ra[0].b), xs=rangeAll(ra[1].a,ra[1].b); if(ys.length!==xs.length) throw new FErr('V');
+            const P=[]; ys.forEach((y,i)=>{ if(typeof y==='number'&&typeof xs[i]==='number') P.push([xs[i],y]); }); if(P.length<2) throw new FErr('D');
+            const mx=P.reduce((s,q)=>s+q[0],0)/P.length, my=P.reduce((s,q)=>s+q[1],0)/P.length;
+            let sxy=0,sxx=0,syy=0; P.forEach(([x,y])=>{ sxy+=(x-mx)*(y-my); sxx+=(x-mx)**2; syy+=(y-my)**2; }); if(sxx===0) throw new FErr('D');
+            if(n.name==='RSQ'){ if(syy===0) throw new FErr('D'); return sxy*sxy/(sxx*syy); }
+            const k=sxy/sxx; return my+k*(num(ev(n.args[0]))-mx); }
           if(!['SUM','AVERAGE','MEDIAN','MIN','MAX'].includes(n.name)) throw new FErr('FN',n.name);
           if(!n.args.length) throw new FErr('ARGS',n.name);
           const v=nums();
